@@ -1,0 +1,6 @@
+---
+# linux 접속 계정 정보
+# 실제 값으로 교체 후 GitLab 에 커밋
+ansible_user:            "cloviradmin"
+ansible_password:        "Goodmit0802!"
+ansible_become_password: "Goodmit0802!"

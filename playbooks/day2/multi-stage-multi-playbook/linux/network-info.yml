@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / network-info
+#
+# 네트워크 인터페이스 정보를 수집한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / network-info
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+
+    - name: "network-info | network interfaces"
+      ansible.builtin.command: ip -br addr show
+      changed_when: false
+      register: _network_result
+
+    - name: "network-info | network interfaces result"
+      ansible.builtin.debug:
+        msg: "{{ _network_result.stdout_lines }}"

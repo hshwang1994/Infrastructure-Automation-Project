@@ -1,0 +1,69 @@
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc', defaultValue: 'git', description: 'Agent 라벨')
+        text(
+            name        : 'inventory_json',
+            defaultValue: '''[
+  { "ip": "10.100.64.166", "hostname": "linux-real-01" },
+  { "ip": "10.100.64.167", "hostname": "linux-real-02" },
+  { "ip": "10.100.64.168", "hostname": "linux-real-03" },
+  { "ip": "10.100.64.169", "hostname": "linux-real-04" },
+  { "ip": "10.100.64.170", "hostname": "linux-real-05" }
+]''',
+            description : '포털에서 전달하는 타겟 호스트 JSON'
+        )
+    }
+
+    environment {
+        REPO_ROOT = "${WORKSPACE}"
+    }
+
+    stages {
+        stage('Host & Storage') {
+            steps {
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/host-basic.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    installation: 'ansible',
+                    colorized   : true
+                )
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/storage-info.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    installation: 'ansible',
+                    colorized   : true
+                )
+            }
+        }
+
+        stage('Memory & Network') {
+            steps {
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/memory-info.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    installation: 'ansible',
+                    colorized   : true
+                )
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/network-info.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    installation: 'ansible',
+                    colorized   : true
+                )
+            }
+        }
+
+        stage('Summary') {
+            steps {
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/summary.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    installation: 'ansible',
+                    colorized   : true
+                )
+            }
+        }
+    }
+}

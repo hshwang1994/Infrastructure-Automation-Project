@@ -1,0 +1,5 @@
+---
+# dell BMC Redfish 접속 계정 정보
+# 실제 값으로 교체 후 GitLab 에 커밋
+ansible_user:     "CHANGE_ME"
+ansible_password: "CHANGE_ME"

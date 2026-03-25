@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / memory-info
+#
+# 메모리 사용량을 수집한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / memory-info
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+
+    - name: "memory-info | memory usage"
+      ansible.builtin.command: free -m
+      changed_when: false
+      register: _memory_result
+
+    - name: "memory-info | memory usage result"
+      ansible.builtin.debug:
+        msg: "{{ _memory_result.stdout_lines }}"

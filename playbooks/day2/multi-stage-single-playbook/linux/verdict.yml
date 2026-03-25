@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / verdict
+#
+# 서비스·포트·OS 정보를 종합하여 최종 판정을 출력한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / verdict
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _check_services:
+      - sshd
+      - crond
+      - chronyd
+    _check_ports:
+      - 22
+
+  tasks:
+
+    - name: "verdict | check services"
+      ansible.builtin.command: "systemctl is-active {{ item }}"
+      loop: "{{ _check_services }}"
+      changed_when: false
+      failed_when: false
+      register: _svc_results
+
+    - name: "verdict | check ports"
+      ansible.builtin.command: "ss -tlnp sport = :{{ item }}"
+      loop: "{{ _check_ports }}"
+      changed_when: false
+      failed_when: false
+      register: _port_results
+
+    - name: "verdict | VERDICT"
+      vars:
+        _failed_svcs: "{{ _svc_results.results | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0) | list }}"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | Services: {{ _check_services | length - _failed_svcs | length }}/{{ _check_services | length }} active
+          | Ports: {{ _check_ports | length }} checked
+          | OS: {{ ansible_distribution }} {{ ansible_distribution_version }}

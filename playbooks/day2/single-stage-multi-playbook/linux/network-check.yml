@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# single-stage-multi-playbook / linux — network-check.yml
+#
+# 목적:
+#   하나의 Jenkins 스테이지에서 여러 플레이북을 실행하는 패턴 예시 (1/2).
+#   네트워크 관련 정보를 수집한다: DNS, 기본 게이트웨이, 라우팅 테이블.
+#
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: single-stage-multi-playbook / network-check
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    # ── 1. DNS 설정 확인 ──────────────────────────────────────────────
+    - name: "network-check | resolv.conf"
+      ansible.builtin.command: cat /etc/resolv.conf
+      changed_when: false
+      register: _dns_result
+
+    - name: "network-check | DNS servers"
+      ansible.builtin.debug:
+        msg: "{{ _dns_result.stdout_lines | select('match', '^nameserver') | list }}"
+
+    # ── 2. 기본 게이트웨이 ────────────────────────────────────────────
+    - name: "network-check | default gateway"
+      ansible.builtin.command: ip route show default
+      changed_when: false
+      failed_when: false
+      register: _gw_result
+
+    - name: "network-check | gateway result"
+      ansible.builtin.debug:
+        msg: "{{ _gw_result.stdout | default('no default gateway') }}"
+
+    # ── 3. 라우팅 테이블 ─────────────────────────────────────────────
+    - name: "network-check | routing table"
+      ansible.builtin.command: ip route show
+      changed_when: false
+      register: _route_result
+
+    - name: "network-check | SUMMARY"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | Default GW: {{ ansible_default_ipv4.gateway | default('N/A') }}
+          | DNS: {{ ansible_dns.nameservers | default([]) | join(', ') }}
+          | Routes: {{ _route_result.stdout_lines | length }} entries

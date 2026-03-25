@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / storage-info
+#
+# 디스크 사용량을 수집한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / storage-info
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+
+    - name: "storage-info | disk usage"
+      ansible.builtin.command: df -h
+      changed_when: false
+      register: _disk_result
+
+    - name: "storage-info | disk usage result"
+      ansible.builtin.debug:
+        msg: "{{ _disk_result.stdout_lines }}"

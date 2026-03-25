@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / summary
+#
+# 시스템 정보를 종합하여 요약을 출력한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / summary
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - name: "summary | hostname"
+      ansible.builtin.command: hostname
+      changed_when: false
+      register: _hostname_result
+
+    - name: "summary | uptime"
+      ansible.builtin.command: uptime
+      changed_when: false
+      register: _uptime_result
+
+    - name: "summary | SUMMARY"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          | Kernel: {{ ansible_kernel }}
+          | CPU: {{ ansible_processor_vcpus }}core
+          | MEM: {{ ansible_memtotal_mb }}MB
+          | Hostname: {{ _hostname_result.stdout }}
+          | Uptime: {{ _uptime_result.stdout }}

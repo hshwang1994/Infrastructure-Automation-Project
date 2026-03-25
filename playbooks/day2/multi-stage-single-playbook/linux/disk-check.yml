@@ -1,0 +1,44 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / disk-check
+#
+# 디스크 사용률 경고와 /var/log 용량을 체크한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / disk-check
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _disk_warn_threshold: 90
+
+  tasks:
+
+    # ── 1. 디스크 사용률 체크 (when 조건부) ───────────────────────────
+    - name: "disk-check | high disk usage warning"
+      ansible.builtin.debug:
+        msg: >-
+          [WARN] {{ item.mount }} 사용률 {{ item.size_available | int * 100 // item.size_total | int }}% 이상
+          (available: {{ (item.size_available / 1073741824) | round(1) }}GB)
+      loop: "{{ ansible_mounts }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      when:
+        - item.size_total | int > 0
+        - ((item.size_total | int - item.size_available | int) * 100 / item.size_total | int) | int >= _disk_warn_threshold
+
+    # ── 2. /var/log 디렉토리 용량 ────────────────────────────────────
+    - name: "disk-check | /var/log size"
+      ansible.builtin.command: du -sh /var/log
+      changed_when: false
+      failed_when: false
+      register: _varlog_result
+
+    - name: "disk-check | /var/log size result"
+      ansible.builtin.debug:
+        msg: "/var/log: {{ _varlog_result.stdout | default('N/A') }}"

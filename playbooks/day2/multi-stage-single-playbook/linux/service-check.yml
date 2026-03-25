@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / service-check
+#
+# 서비스 상태와 포트 리스닝을 체크한다.
+# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / service-check
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _check_services:
+      - sshd
+      - crond
+      - chronyd
+    _check_ports:
+      - 22
+
+  tasks:
+
+    # ── 1. 서비스 상태 체크 (loop) ────────────────────────────────────
+    - name: "service-check | service status"
+      ansible.builtin.command: "systemctl is-active {{ item }}"
+      loop: "{{ _check_services }}"
+      changed_when: false
+      failed_when: false
+      register: _svc_results
+
+    - name: "service-check | service status summary"
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: {{ item.stdout | default('unknown') }}"
+      loop: "{{ _svc_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ── 2. 포트 리스닝 체크 (loop) ────────────────────────────────────
+    - name: "service-check | port listening"
+      ansible.builtin.command: "ss -tlnp sport = :{{ item }}"
+      loop: "{{ _check_ports }}"
+      changed_when: false
+      failed_when: false
+      register: _port_results
+
+    - name: "service-check | port listening summary"
+      ansible.builtin.debug:
+        msg: "port {{ item.item }}: {{ 'LISTENING' if item.stdout_lines | length > 1 else 'NOT LISTENING' }}"
+      loop: "{{ _port_results.results }}"
+      loop_control:
+        label: "port {{ item.item }}"
