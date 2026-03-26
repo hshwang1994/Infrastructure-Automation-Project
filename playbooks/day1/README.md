@@ -13,7 +13,7 @@ Day1 작업은 서버 최초 구성 시 수행하는 작업입니다.
 ## 디렉터리 구조
 
 ```
-playbooks/day1/
+day1/
   {작업명}/
     {OS타입}/
       Jenkinsfile
@@ -22,5 +22,5 @@ playbooks/day1/
 
 ## 새 작업 추가 방법
 
-GUIDE_FOR_AI.md 와 docs/jenkins-guide.md 를 참고하여
+GUIDE_FOR_AI.md 와 GUIDE/jenkinsfile-guide.md 를 참고하여
 Jenkinsfile + site.yml 을 작성하고 해당 디렉터리에 추가합니다.
