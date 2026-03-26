@@ -27,7 +27,7 @@
 
     - name: "host-basic | hostname result"
       ansible.builtin.debug:
-        msg: "hostname: {{ _hostname_result.stdout }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | hostname: {{ _hostname_result.stdout }}"
 
     - name: "host-basic | uptime"
       ansible.builtin.command: uptime
@@ -36,4 +36,4 @@
 
     - name: "host-basic | uptime result"
       ansible.builtin.debug:
-        msg: "uptime: {{ _uptime_result.stdout }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | uptime: {{ _uptime_result.stdout }}"

@@ -27,4 +27,4 @@
 
     - name: "memory-info | memory usage result"
       ansible.builtin.debug:
-        msg: "{{ _memory_result.stdout_lines }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _memory_result.stdout_lines }}"

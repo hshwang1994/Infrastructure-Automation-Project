@@ -27,4 +27,4 @@
 
     - name: "storage-info | disk usage result"
       ansible.builtin.debug:
-        msg: "{{ _disk_result.stdout_lines }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _disk_result.stdout_lines }}"

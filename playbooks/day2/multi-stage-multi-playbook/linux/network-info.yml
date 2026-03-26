@@ -27,4 +27,4 @@
 
     - name: "network-info | network interfaces result"
       ansible.builtin.debug:
-        msg: "{{ _network_result.stdout_lines }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _network_result.stdout_lines }}"

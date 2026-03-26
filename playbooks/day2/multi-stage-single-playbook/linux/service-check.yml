@@ -36,7 +36,7 @@
 
     - name: "service-check | service status summary"
       ansible.builtin.debug:
-        msg: "{{ item.item }}: {{ item.stdout | default('unknown') }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ item.item }}: {{ item.stdout | default('unknown') }}"
       loop: "{{ _svc_results.results }}"
       loop_control:
         label: "{{ item.item }}"
@@ -51,7 +51,7 @@
 
     - name: "service-check | port listening summary"
       ansible.builtin.debug:
-        msg: "port {{ item.item }}: {{ 'LISTENING' if item.stdout_lines | length > 1 else 'NOT LISTENING' }}"
+        msg: "[{{ _host }}] ({{ _ip }}) | port {{ item.item }}: {{ 'LISTENING' if item.stdout_lines | length > 1 else 'NOT LISTENING' }}"
       loop: "{{ _port_results.results }}"
       loop_control:
         label: "port {{ item.item }}"
