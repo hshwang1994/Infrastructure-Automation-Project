@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / network-info
+#
+# 네트워크 인터페이스 정보를 수집한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / network-info
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - name: "network-info | network adapters"
+      ansible.windows.win_shell: |
+        Get-NetAdapter | Where-Object Status -eq 'Up' | ForEach-Object {
+          $ip = (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
+          "{0} | {1} | {2}" -f $_.Name, $_.MacAddress, ($ip -join ', ')
+        }
+      changed_when: false
+      register: _network_result
+
+    - name: "network-info | network adapters result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _network_result.stdout_lines }}"

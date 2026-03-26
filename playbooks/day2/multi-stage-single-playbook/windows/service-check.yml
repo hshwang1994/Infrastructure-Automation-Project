@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / service-check
+#
+# Windows 서비스 상태와 포트 리스닝을 체크한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / service-check
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _check_services:
+      - W32Time
+      - WinRM
+      - EventLog
+    _check_ports:
+      - 3389
+      - 5985
+
+  tasks:
+
+    # ── 1. 서비스 상태 체크 ─────────────────────────────────────────
+    - name: "service-check | service status"
+      ansible.windows.win_shell: "Get-Service -Name '{{ item }}' | Select-Object -Property Name,Status | Format-List"
+      loop: "{{ _check_services }}"
+      changed_when: false
+      failed_when: false
+      register: _svc_results
+
+    - name: "service-check | service status summary"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ item.item }}: {{ item.stdout | trim | default('unknown') }}"
+      loop: "{{ _svc_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ── 2. 포트 리스닝 체크 ─────────────────────────────────────────
+    - name: "service-check | port listening"
+      ansible.windows.win_shell: "Get-NetTCPConnection -LocalPort {{ item }} -State Listen -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
+      loop: "{{ _check_ports }}"
+      changed_when: false
+      failed_when: false
+      register: _port_results
+
+    - name: "service-check | port listening summary"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | port {{ item.item }}: {{ 'LISTENING' if (item.stdout | trim | int > 0) else 'NOT LISTENING' }}"
+      loop: "{{ _port_results.results }}"
+      loop_control:
+        label: "port {{ item.item }}"

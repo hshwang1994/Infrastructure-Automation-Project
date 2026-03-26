@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / host-basic
+#
+# 호스트명과 가동시간을 수집한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / host-basic
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - name: "host-basic | hostname"
+      ansible.windows.win_command: hostname
+      changed_when: false
+      register: _hostname_result
+
+    - name: "host-basic | hostname result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | hostname: {{ _hostname_result.stdout | trim }}"
+
+    - name: "host-basic | uptime"
+      ansible.windows.win_shell: |
+        $boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+        $uptime = (Get-Date) - $boot
+        "{0}d {1}h {2}m" -f $uptime.Days, $uptime.Hours, $uptime.Minutes
+      changed_when: false
+      register: _uptime_result
+
+    - name: "host-basic | uptime result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | uptime: {{ _uptime_result.stdout | trim }}"

@@ -1,0 +1,48 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / disk-check
+#
+# 디스크 사용률 경고와 주요 디렉토리 용량을 체크한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / disk-check
+  hosts: all
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _disk_warn_threshold: 90
+
+  tasks:
+
+    # ── 1. 디스크 사용률 체크 ───────────────────────────────────────
+    - name: "disk-check | disk usage"
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
+          $used = (($_.Size - $_.FreeSpace) / $_.Size) * 100
+          "{0} | Size: {1:N1}GB | Free: {2:N1}GB | Used: {3:N0}%" -f $_.DeviceID, ($_.Size/1GB), ($_.FreeSpace/1GB), $used
+        }
+      changed_when: false
+      register: _disk_result
+
+    - name: "disk-check | disk usage result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _disk_result.stdout_lines }}"
+
+    # ── 2. Windows 로그 디렉토리 용량 ──────────────────────────────
+    - name: "disk-check | Windows logs size"
+      ansible.windows.win_shell: |
+        $size = (Get-ChildItem C:\Windows\Logs -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+        "{0:N1} MB" -f ($size / 1MB)
+      changed_when: false
+      failed_when: false
+      register: _winlog_result
+
+    - name: "disk-check | Windows logs size result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | C:\\Windows\\Logs: {{ _winlog_result.stdout | trim | default('N/A') }}"

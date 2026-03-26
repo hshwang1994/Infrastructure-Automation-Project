@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# single-stage-single-playbook / windows
+#
+# WinRM 연결 확인용 ping 테스트.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: single-stage-single-playbook / windows
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - block:
+        - name: "single-stage-single-playbook | WinRM ping"
+          ansible.windows.win_ping:
+
+        - name: "single-stage-single-playbook | RESULT"
+          ansible.builtin.debug:
+            msg: "[OK] {{ _host }} ({{ _ip }})"
+
+      rescue:
+        - name: "single-stage-single-playbook | RESULT (failed)"
+          ansible.builtin.debug:
+            msg: "[FAIL] {{ _host }} ({{ _ip }}) | {{ ansible_failed_result.msg | default('WinRM 연결 실패') }}"

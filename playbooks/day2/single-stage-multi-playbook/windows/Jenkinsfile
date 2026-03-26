@@ -1,0 +1,38 @@
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치')
+        string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
+        text(
+            name        : 'inventory_json',
+            defaultValue: '''[
+  { "bmc_ip": "", "service_ip": "", "hostname": "", "vendor": "" }
+]''',
+            description : '포털에서 전달하는 타겟 호스트 JSON'
+        )
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}"
+    }
+
+    stages {
+        stage('Multi Gather') {
+            steps {
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/windows/network-check.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    colorized   : true
+                )
+                ansiblePlaybook(
+                    playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/windows/resource-check.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    colorized   : true
+                )
+            }
+        }
+    }
+}

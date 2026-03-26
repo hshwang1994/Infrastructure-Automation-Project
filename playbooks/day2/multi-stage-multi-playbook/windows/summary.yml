@@ -1,0 +1,43 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / summary
+#
+# 시스템 정보를 종합하여 요약을 출력한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / summary
+  hosts: all
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - name: "summary | hostname"
+      ansible.windows.win_command: hostname
+      changed_when: false
+      register: _hostname_result
+
+    - name: "summary | uptime"
+      ansible.windows.win_shell: |
+        $boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+        $uptime = (Get-Date) - $boot
+        "{0}d {1}h {2}m" -f $uptime.Days, $uptime.Hours, $uptime.Minutes
+      changed_when: false
+      register: _uptime_result
+
+    - name: "summary | SUMMARY"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | OS: {{ ansible_os_name | default('Windows') }}
+          | CPU: {{ ansible_processor_vcpus | default('N/A') }}core
+          | MEM: {{ ansible_memtotal_mb | default('N/A') }}MB
+          | Hostname: {{ _hostname_result.stdout | trim }}
+          | Uptime: {{ _uptime_result.stdout | trim }}

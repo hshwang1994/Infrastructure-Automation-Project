@@ -3,8 +3,8 @@
 # 실제 값으로 교체 후 GitLab 에 커밋
 
 # 인증 정보
-ansible_user:     "CHANGE_ME"
-ansible_password: "CHANGE_ME"
+ansible_user:     "gooddit"
+ansible_password: "Goodmit0802!"
 
 # WinRM 연결 설정
 ansible_connection:                   "winrm"

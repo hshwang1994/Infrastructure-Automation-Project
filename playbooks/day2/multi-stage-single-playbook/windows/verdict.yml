@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# multi-stage-single-playbook / verdict
+#
+# 서비스·포트·OS 정보를 종합하여 최종 판정을 출력한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-single-playbook / verdict
+  hosts: all
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _check_services:
+      - W32Time
+      - WinRM
+      - EventLog
+    _check_ports:
+      - 3389
+      - 5985
+
+  tasks:
+
+    - name: "verdict | check services"
+      ansible.windows.win_shell: "(Get-Service -Name '{{ item }}').Status"
+      loop: "{{ _check_services }}"
+      changed_when: false
+      failed_when: false
+      register: _svc_results
+
+    - name: "verdict | check ports"
+      ansible.windows.win_shell: "Get-NetTCPConnection -LocalPort {{ item }} -State Listen -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count"
+      loop: "{{ _check_ports }}"
+      changed_when: false
+      failed_when: false
+      register: _port_results
+
+    - name: "verdict | VERDICT"
+      vars:
+        _running_svcs: "{{ _svc_results.results | selectattr('stdout', 'search', 'Running') | list }}"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | Services: {{ _running_svcs | length }}/{{ _check_services | length }} running
+          | Ports: {{ _check_ports | length }} checked
+          | OS: {{ ansible_os_name | default('Windows') }} {{ ansible_os_product_type | default('') }}

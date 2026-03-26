@@ -1,0 +1,35 @@
+---
+# =============================================================================
+# multi-stage-multi-playbook / memory-info
+#
+# 메모리 사용량을 수집한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: multi-stage-multi-playbook / memory-info
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    - name: "memory-info | memory usage"
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        "Total: {0:N0} MB | Free: {1:N0} MB | Used: {2:N0} MB ({3:N0}%)" -f `
+          ($os.TotalVisibleMemorySize/1KB), `
+          ($os.FreePhysicalMemory/1KB), `
+          (($os.TotalVisibleMemorySize - $os.FreePhysicalMemory)/1KB), `
+          ((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100)
+      changed_when: false
+      register: _memory_result
+
+    - name: "memory-info | memory usage result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _memory_result.stdout | trim }}"

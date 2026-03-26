@@ -1,0 +1,43 @@
+---
+# =============================================================================
+# single-stage-multi-playbook / windows — network-check.yml
+#
+# 네트워크 정보 수집: IP 구성, DNS, 기본 게이트웨이.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: single-stage-multi-playbook / network-check
+  hosts: all
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    # ── 1. IP 구성 확인 ───────────────────────────────────────────────
+    - name: "network-check | ipconfig"
+      ansible.windows.win_command: ipconfig /all
+      changed_when: false
+      register: _ipconfig_result
+
+    - name: "network-check | ipconfig result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _ipconfig_result.stdout_lines[:20] }}"
+
+    # ── 2. DNS 확인 ───────────────────────────────────────────────────
+    - name: "network-check | DNS servers"
+      ansible.windows.win_shell: Get-DnsClientServerAddress | Select-Object -Property InterfaceAlias,ServerAddresses | Format-Table -AutoSize
+      changed_when: false
+      register: _dns_result
+
+    - name: "network-check | SUMMARY"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | Gateway: {{ ansible_ip_addresses | default([]) | join(', ') }}
+          | DNS: {{ _dns_result.stdout_lines | length }} entries

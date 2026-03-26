@@ -1,0 +1,48 @@
+---
+# =============================================================================
+# single-stage-multi-playbook / windows — resource-check.yml
+#
+# 서버 리소스 수집: CPU, 메모리, 프로세스 수.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: single-stage-multi-playbook / resource-check
+  hosts: all
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
+  tasks:
+
+    # ── 1. CPU 정보 ───────────────────────────────────────────────────
+    - name: "resource-check | CPU info"
+      ansible.windows.win_shell: Get-CimInstance Win32_Processor | Select-Object -Property Name,NumberOfCores,LoadPercentage | Format-List
+      changed_when: false
+      register: _cpu_result
+
+    # ── 2. 메모리 정보 ────────────────────────────────────────────────
+    - name: "resource-check | memory info"
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        "Total: {0:N0} MB, Free: {1:N0} MB, Used: {2:N0} MB" -f ($os.TotalVisibleMemorySize/1KB), ($os.FreePhysicalMemory/1KB), (($os.TotalVisibleMemorySize - $os.FreePhysicalMemory)/1KB)
+      changed_when: false
+      register: _mem_result
+
+    # ── 3. 프로세스 수 ────────────────────────────────────────────────
+    - name: "resource-check | process count"
+      ansible.windows.win_shell: (Get-Process).Count
+      changed_when: false
+      register: _proc_count
+
+    # ── 4. 종합 요약 ─────────────────────────────────────────────────
+    - name: "resource-check | SUMMARY"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ({{ _ip }})
+          | MEM: {{ _mem_result.stdout | trim }}
+          | Processes: {{ _proc_count.stdout | trim }}
