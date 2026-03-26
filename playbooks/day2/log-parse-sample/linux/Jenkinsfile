@@ -1,0 +1,369 @@
+// 기존 프로젝트와 동일하게 ansiblePlaybook plugin 방식을 사용한다.
+// 모든 실행 블록에 try/finally 를 적용하여 성공/실패와 무관하게 [END] 마커가 출력된다.
+
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치')
+        string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
+        text(
+            name        : 'inventory_json',
+            defaultValue: '''[
+  { "bmc_ip": "", "service_ip": "", "hostname": "", "vendor": "" }
+]''',
+            description : '포털에서 전달하는 타겟 호스트 JSON'
+        )
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}"
+        PB_DIR         = "${WORKSPACE}/playbooks/day2/log-parse-sample/linux"
+        INV            = "${WORKSPACE}/inventory/my_inventory.sh"
+    }
+
+    stages {
+        // ──────────────────────────────────────────────────────
+        // Stage 1: Status Induction (상태 유도) — 7회
+        // ──────────────────────────────────────────────────────
+        stage('Status Induction') {
+            steps {
+                // 1) status-ok-changed-skipped (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Status Induction playbook=status-ok-changed-skipped run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-ok-changed-skipped run_id=1'
+                        }
+                    }
+                }
+
+                // 2) status-fail-rescue-ignore (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Status Induction playbook=status-fail-rescue-ignore run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-fail-rescue-ignore run_id=1'
+                        }
+                    }
+                }
+
+                // 3) status-mixed (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Status Induction playbook=status-mixed run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-mixed.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-mixed run_id=1'
+                        }
+                    }
+                }
+
+                // 4) status-ok-changed-skipped (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Status Induction playbook=status-ok-changed-skipped run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-ok-changed-skipped run_id=2'
+                        }
+                    }
+                }
+
+                // 5) status-fail-rescue-ignore (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Status Induction playbook=status-fail-rescue-ignore run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-fail-rescue-ignore run_id=2'
+                        }
+                    }
+                }
+
+                // 6) status-mixed (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Status Induction playbook=status-mixed run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-mixed.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=status-mixed run_id=2'
+                        }
+                    }
+                }
+
+                // 7) host-condition (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Status Induction playbook=host-condition run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/host-condition.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Status Induction playbook=host-condition run_id=1'
+                        }
+                    }
+                }
+            }
+        }
+
+        // ──────────────────────────────────────────────────────
+        // Stage 2: Collection & Repeat (수집 반복) — 6회
+        // ──────────────────────────────────────────────────────
+        stage('Collection & Repeat') {
+            steps {
+                // 1) memory-info (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Collection & Repeat playbook=memory-info run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/memory-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=memory-info run_id=1'
+                        }
+                    }
+                }
+
+                // 2) memory-info (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Collection & Repeat playbook=memory-info run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/memory-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=memory-info run_id=2'
+                        }
+                    }
+                }
+
+                // 3) network-info (run 1)
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Collection & Repeat playbook=network-info run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/network-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=network-info run_id=1'
+                        }
+                    }
+                }
+
+                // 4) network-info (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Collection & Repeat playbook=network-info run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/network-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=network-info run_id=2'
+                        }
+                    }
+                }
+
+                // 5) host-condition (run 2)
+                withEnv(["RUN_ID=2"]) {
+                    echo '[START] stage=Collection & Repeat playbook=host-condition run_id=2'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/host-condition.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=host-condition run_id=2'
+                        }
+                    }
+                }
+
+                // 6) status-mixed (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Collection & Repeat playbook=status-mixed run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-mixed.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Collection & Repeat playbook=status-mixed run_id=3'
+                        }
+                    }
+                }
+            }
+        }
+
+        // ──────────────────────────────────────────────────────
+        // Stage 3: Final Validation (최종 검증) — 7회
+        // ──────────────────────────────────────────────────────
+        stage('Final Validation') {
+            steps {
+                // 1) host-condition (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Final Validation playbook=host-condition run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/host-condition.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=host-condition run_id=3'
+                        }
+                    }
+                }
+
+                // 2) memory-info (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Final Validation playbook=memory-info run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/memory-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=memory-info run_id=3'
+                        }
+                    }
+                }
+
+                // 3) network-info (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Final Validation playbook=network-info run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/network-info.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=network-info run_id=3'
+                        }
+                    }
+                }
+
+                // 4) status-ok-changed-skipped (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Final Validation playbook=status-ok-changed-skipped run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=status-ok-changed-skipped run_id=3'
+                        }
+                    }
+                }
+
+                // 5) status-fail-rescue-ignore (run 3)
+                withEnv(["RUN_ID=3"]) {
+                    echo '[START] stage=Final Validation playbook=status-fail-rescue-ignore run_id=3'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=status-fail-rescue-ignore run_id=3'
+                        }
+                    }
+                }
+
+                // 6) status-mixed (run 4)
+                withEnv(["RUN_ID=4"]) {
+                    echo '[START] stage=Final Validation playbook=status-mixed run_id=4'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/status-mixed.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=status-mixed run_id=4'
+                        }
+                    }
+                }
+
+                // 7) force-fail (run 1) — 의도적 rc!=0, 마지막 배치
+                withEnv(["RUN_ID=1"]) {
+                    echo '[START] stage=Final Validation playbook=force-fail run_id=1'
+                    script {
+                        try {
+                            ansiblePlaybook(
+                                playbook  : "${PB_DIR}/force-fail.yml",
+                                inventory : "${INV}",
+                                colorized : true
+                            )
+                        } finally {
+                            echo '[END] stage=Final Validation playbook=force-fail run_id=1'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

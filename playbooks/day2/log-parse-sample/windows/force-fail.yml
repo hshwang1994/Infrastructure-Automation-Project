@@ -1,0 +1,35 @@
+---
+# =============================================================================
+# 실패: 의도적 rc!=0
+#
+# hostname 끝 숫자가 1인 host에서 의도적으로 실패한다.
+# block/rescue, ignore_errors 없이 실패하므로 Ansible이 rc!=0으로 종료한다.
+# Jenkins에서 이 playbook이 포함된 stage는 FAILURE로 표시된다.
+#
+# 반드시 stage의 마지막에 배치하여 앞선 playbook 실행에 영향이 없도록 한다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / force-fail [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+    _host_num: "{{ (inventory_hostname | regex_search('(\\d+)$', '\\1') | default(['0'], true) | first) | int }}"
+
+  tasks:
+
+    - name: "force-fail | pre-fail notice"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] this playbook will fail for suffix=1 host"
+
+    - name: "force-fail | intentional failure"
+      ansible.builtin.fail:
+        msg: "INTENTIONAL FAILURE for parsing test on {{ _host }}"
+      when: _host_num == 1

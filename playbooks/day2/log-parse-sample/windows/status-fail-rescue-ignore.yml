@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# 상태 유도: rescued, ignored
+#
+# block/rescue 로 rescued, ignore_errors 로 ignored 상태를 유도한다.
+# 모든 host에서 동일한 결과가 나온다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / status-fail-rescue-ignore [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+
+  tasks:
+
+    - name: "status-fail-rescue-ignore | start"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] rescue and ignore test start"
+
+    - name: "status-fail-rescue-ignore | rescued path"
+      block:
+        - name: "status-fail-rescue-ignore | block - intentional fail"
+          ansible.builtin.fail:
+            msg: "intentional failure for rescue test"
+      rescue:
+        - name: "status-fail-rescue-ignore | rescue - recovered"
+          ansible.builtin.debug:
+            msg: "[{{ _host }}] rescued from intentional failure"
+
+    - name: "status-fail-rescue-ignore | ignored - intentional fail"
+      ansible.builtin.fail:
+        msg: "intentional failure for ignore test"
+      ignore_errors: true
+
+    - name: "status-fail-rescue-ignore | after ignore"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] continued after ignored failure"
+
+    - name: "status-fail-rescue-ignore | complete"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] all rescue/ignore tests passed"

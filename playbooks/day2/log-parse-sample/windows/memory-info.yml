@@ -1,0 +1,56 @@
+---
+# =============================================================================
+# 수집: 메모리 정보
+#
+# 실제 메모리 사용량을 수집한다.
+# host별 부분 분기: suffix=2 → changed, suffix=3 → 상세 수집 skipped
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / memory-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+    # ── host 분기용 ──────────────────────────────────────────
+    # hostname 끝 숫자를 추출한다. (예: WIN-01 → 1, WIN-02 → 2)
+    # 네이밍 규칙이 다르면 이 변수만 수정한다.
+    # hostvars 기반 전환 예:
+    #   _host_num: "{{ hostvars[inventory_hostname]['condition_id'] | default(0) | int }}"
+    _host_num: "{{ (inventory_hostname | regex_search('(\\d+)$', '\\1') | default(['0'], true) | first) | int }}"
+
+  tasks:
+
+    - name: "memory-info | collect memory usage"
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        "Total: {0:N0} MB | Free: {1:N0} MB | Used: {2:N0} MB ({3:N0}%)" -f `
+          ($os.TotalVisibleMemorySize/1KB), `
+          ($os.FreePhysicalMemory/1KB), `
+          (($os.TotalVisibleMemorySize - $os.FreePhysicalMemory)/1KB), `
+          ((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100)
+      changed_when: false
+      register: _mem
+
+    - name: "memory-info | memory result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | {{ _mem.stdout | trim }}"
+
+    - name: "memory-info | mark as reviewed"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] memory collection reviewed"
+      changed_when: _host_num == 2
+
+    - name: "memory-info | detailed physical memory"
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_PhysicalMemory |
+          Select-Object BankLabel, Capacity, Speed |
+          Format-Table -AutoSize | Out-String
+      changed_when: false
+      when: _host_num != 3

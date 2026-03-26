@@ -1,0 +1,43 @@
+---
+# =============================================================================
+# 수집: 네트워크 정보
+#
+# 인터페이스, 라우팅, DNS 정보를 수집한다.
+# host별 부분 분기: suffix=4 → 라우팅 skipped, suffix=1 → DNS changed
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / network-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+    # ── host 분기용 ──────────────────────────────────────────
+    _host_num: "{{ (inventory_hostname | regex_search('(\\d+)$', '\\1') | default(['0'], true) | first) | int }}"
+
+  tasks:
+
+    - name: "network-info | collect interfaces"
+      ansible.builtin.command: ip addr show
+      changed_when: false
+      register: _net
+
+    - name: "network-info | interface result"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ({{ _ip }}) | interfaces={{ _net.stdout_lines[:5] }}"
+
+    - name: "network-info | routing table"
+      ansible.builtin.command: ip route show
+      changed_when: false
+      when: _host_num != 4
+
+    - name: "network-info | dns config"
+      ansible.builtin.command: cat /etc/resolv.conf
+      changed_when: _host_num == 1

@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# 상태 유도: 6가지 전부 (ok, changed, skipped, rescued, ignored)
+#
+# 한 playbook에서 모든 상태를 한 번에 유도한다.
+# 모든 host에서 동일한 결과가 나온다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / status-mixed [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+
+  tasks:
+
+    - name: "status-mixed | ok - system check"
+      ansible.windows.win_shell: |
+        (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime | Select-Object -ExpandProperty TotalHours
+      changed_when: false
+
+    - name: "status-mixed | changed - date stamp"
+      ansible.windows.win_shell: Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+      changed_when: true
+
+    - name: "status-mixed | skipped - disabled task"
+      ansible.builtin.debug:
+        msg: "this task is always skipped"
+      when: false
+
+    - name: "status-mixed | rescued path"
+      block:
+        - name: "status-mixed | block - intentional fail"
+          ansible.builtin.fail:
+            msg: "intentional failure for rescue"
+      rescue:
+        - name: "status-mixed | rescue - recovered"
+          ansible.builtin.debug:
+            msg: "[{{ _host }}] rescued"
+
+    - name: "status-mixed | ignored - intentional fail"
+      ansible.builtin.fail:
+        msg: "intentional failure for ignore"
+      ignore_errors: true

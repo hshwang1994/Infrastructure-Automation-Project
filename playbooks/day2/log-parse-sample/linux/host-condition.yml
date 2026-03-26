@@ -1,0 +1,69 @@
+---
+# =============================================================================
+# 분기: host별 상태 분기
+#
+# hostname 끝 숫자에 따라 각 host가 서로 다른 상태를 만든다.
+#   suffix=1 → ok
+#   suffix=2 → changed
+#   suffix=3 → skipped (모든 조건부 task 스킵)
+#   suffix=4 → ignored
+#   suffix=5 → rescued
+#   그 외   → ok
+#
+# PLAY RECAP에서 host별 집계 차이가 선명하게 보인다.
+# 읽기 전용 (서버 변경 없음)
+# =============================================================================
+
+- name: "log-parse / host-condition [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+    # ── host 분기용 ──────────────────────────────────────────
+    # hostname 끝 숫자를 추출한다. (예: LNX-01 → 1, LNX-05 → 5)
+    # 네이밍 규칙이 다르면 이 변수만 수정한다.
+    # hostvars 기반 전환 예:
+    #   _host_num: "{{ hostvars[inventory_hostname]['condition_id'] | default(0) | int }}"
+    # group_vars 기반 전환 예:
+    #   group_vars/suffix1.yml 에 condition_id: 1 정의 후 인벤토리 그룹 활용
+    _host_num: "{{ (inventory_hostname | regex_search('(\\d+)$', '\\1') | default(['0'], true) | first) | int }}"
+
+  tasks:
+
+    - name: "host-condition | condition check"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] host_num={{ _host_num }}"
+
+    - name: "host-condition | ok path (suffix=1)"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] ok path executed"
+      when: _host_num == 1
+
+    - name: "host-condition | changed path (suffix=2)"
+      ansible.builtin.command: date
+      changed_when: true
+      when: _host_num == 2
+
+    - name: "host-condition | ignored path (suffix=4)"
+      ansible.builtin.fail:
+        msg: "intentional failure for host {{ _host }}"
+      ignore_errors: true
+      when: _host_num == 4
+
+    - name: "host-condition | rescued path (suffix=5)"
+      block:
+        - name: "host-condition | block - fail for rescue"
+          ansible.builtin.fail:
+            msg: "intentional failure for rescue on {{ _host }}"
+      rescue:
+        - name: "host-condition | rescue - recovered"
+          ansible.builtin.debug:
+            msg: "[{{ _host }}] rescued successfully"
+      when: _host_num == 5
