@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / status-fail-rescue-ignore [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 상태-실패-복구-무시 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
   connection: ssh
@@ -22,29 +22,29 @@
 
   tasks:
 
-    - name: "status-fail-rescue-ignore | start"
+    - name: "상태-실패-복구-무시 | 시작"
       ansible.builtin.debug:
         msg: "[{{ _host }}] rescue and ignore test start"
 
-    - name: "status-fail-rescue-ignore | rescued path"
+    - name: "상태-실패-복구-무시 | 복구 경로"
       block:
-        - name: "status-fail-rescue-ignore | block - intentional fail"
+        - name: "상태-실패-복구-무시 | 블록 내 실패 태스크"
           ansible.builtin.fail:
             msg: "intentional failure for rescue test"
       rescue:
-        - name: "status-fail-rescue-ignore | rescue - recovered"
+        - name: "상태-실패-복구-무시 | 복구 핸들러"
           ansible.builtin.debug:
             msg: "[{{ _host }}] rescued from intentional failure"
 
-    - name: "status-fail-rescue-ignore | ignored - intentional fail"
+    - name: "상태-실패-복구-무시 | 무시된 실패"
       ansible.builtin.fail:
         msg: "intentional failure for ignore test"
       ignore_errors: true
 
-    - name: "status-fail-rescue-ignore | after ignore"
+    - name: "상태-실패-복구-무시 | 무시 핸들러"
       ansible.builtin.debug:
         msg: "[{{ _host }}] continued after ignored failure"
 
-    - name: "status-fail-rescue-ignore | complete"
+    - name: "상태-실패-복구-무시 | 완료"
       ansible.builtin.debug:
         msg: "[{{ _host }}] all rescue/ignore tests passed"

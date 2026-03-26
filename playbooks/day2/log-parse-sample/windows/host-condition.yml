@@ -14,7 +14,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / host-condition [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 호스트-조건분기 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
 
@@ -36,33 +36,33 @@
 
   tasks:
 
-    - name: "host-condition | condition check"
+    - name: "호스트-조건분기 | 조건 확인"
       ansible.builtin.debug:
         msg: "[{{ _host }}] host_num={{ _host_num }}"
 
-    - name: "host-condition | ok path (suffix=1)"
+    - name: "호스트-조건분기 | suffix=1 정상"
       ansible.builtin.debug:
         msg: "[{{ _host }}] ok path executed"
       when: _host_num == 1
 
-    - name: "host-condition | changed path (suffix=2)"
+    - name: "호스트-조건분기 | suffix=2 변경"
       ansible.windows.win_shell: Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
       changed_when: true
       when: _host_num == 2
 
-    - name: "host-condition | ignored path (suffix=4)"
+    - name: "호스트-조건분기 | suffix=4 무시"
       ansible.builtin.fail:
         msg: "intentional failure for host {{ _host }}"
       ignore_errors: true
       when: _host_num == 4
 
-    - name: "host-condition | rescued path (suffix=5)"
+    - name: "호스트-조건분기 | suffix=5 복구"
       block:
-        - name: "host-condition | block - fail for rescue"
+        - name: "호스트-조건분기 | 블록 내 실패 태스크"
           ansible.builtin.fail:
             msg: "intentional failure for rescue on {{ _host }}"
       rescue:
-        - name: "host-condition | rescue - recovered"
+        - name: "호스트-조건분기 | suffix=5 복구 핸들러"
           ansible.builtin.debug:
             msg: "[{{ _host }}] rescued successfully"
       when: _host_num == 5

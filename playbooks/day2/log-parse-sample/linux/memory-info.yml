@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / memory-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 메모리-수집 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
   connection: ssh
@@ -28,21 +28,21 @@
 
   tasks:
 
-    - name: "memory-info | collect memory usage"
+    - name: "메모리-수집 | 메모리 여유량"
       ansible.builtin.command: free -m
       changed_when: false
       register: _mem
 
-    - name: "memory-info | memory result"
+    - name: "메모리-수집 | 메모리 결과"
       ansible.builtin.debug:
         msg: "[{{ _host }}] ({{ _ip }}) | {{ _mem.stdout_lines }}"
 
-    - name: "memory-info | mark as reviewed"
+    - name: "메모리-수집 | suffix=2 변경"
       ansible.builtin.debug:
         msg: "[{{ _host }}] memory collection reviewed"
       changed_when: _host_num == 2
 
-    - name: "memory-info | detailed meminfo"
+    - name: "메모리-수집 | 메모리 상세"
       ansible.builtin.command: cat /proc/meminfo
       changed_when: false
       when: _host_num != 3

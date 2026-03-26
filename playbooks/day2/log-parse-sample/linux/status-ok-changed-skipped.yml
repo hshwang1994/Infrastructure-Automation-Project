@@ -6,7 +6,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / status-ok-changed-skipped [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 상태-정상-변경-스킵 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
   connection: ssh
@@ -21,15 +21,15 @@
 
   tasks:
 
-    - name: "status-ok-changed-skipped | ok - hostname check"
+    - name: "상태-정상-변경-스킵 | 호스트명 확인 (ok)"
       ansible.builtin.command: hostname
       changed_when: false
 
-    - name: "status-ok-changed-skipped | changed - date check"
+    - name: "상태-정상-변경-스킵 | 현재 시간 — changed"
       ansible.builtin.command: date
       changed_when: true
 
-    - name: "status-ok-changed-skipped | skipped - disabled task"
+    - name: "상태-정상-변경-스킵 | 스킵 태스크"
       ansible.builtin.debug:
         msg: "this task is always skipped"
       when: false

@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / status-mixed [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 상태-혼합 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
 
@@ -21,31 +21,31 @@
 
   tasks:
 
-    - name: "status-mixed | ok - system check"
+    - name: "상태-혼합 | 일반 정상 태스크"
       ansible.windows.win_shell: |
         (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime | Select-Object -ExpandProperty TotalHours
       changed_when: false
 
-    - name: "status-mixed | changed - date stamp"
+    - name: "상태-혼합 | 변경 태스크"
       ansible.windows.win_shell: Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
       changed_when: true
 
-    - name: "status-mixed | skipped - disabled task"
+    - name: "상태-혼합 | 스킵 태스크"
       ansible.builtin.debug:
         msg: "this task is always skipped"
       when: false
 
-    - name: "status-mixed | rescued path"
+    - name: "상태-혼합 | 복구된 태스크"
       block:
-        - name: "status-mixed | block - intentional fail"
+        - name: "상태-혼합 | 블록 내 실패 태스크"
           ansible.builtin.fail:
             msg: "intentional failure for rescue"
       rescue:
-        - name: "status-mixed | rescue - recovered"
+        - name: "상태-혼합 | 혼합 복구"
           ansible.builtin.debug:
             msg: "[{{ _host }}] rescued"
 
-    - name: "status-mixed | ignored - intentional fail"
+    - name: "상태-혼합 | 무시된 태스크"
       ansible.builtin.fail:
         msg: "intentional failure for ignore"
       ignore_errors: true

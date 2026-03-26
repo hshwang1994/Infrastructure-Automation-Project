@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / network-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 네트워크-수집 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
 
@@ -23,18 +23,18 @@
 
   tasks:
 
-    - name: "network-info | collect adapters"
+    - name: "네트워크-수집 | 네트워크 어댑터"
       ansible.windows.win_shell: |
         Get-NetAdapter | Select-Object Name, Status, LinkSpeed |
           Format-Table -AutoSize | Out-String
       changed_when: false
       register: _net
 
-    - name: "network-info | adapter result"
+    - name: "네트워크-수집 | 어댑터 결과"
       ansible.builtin.debug:
         msg: "[{{ _host }}] ({{ _ip }}) | {{ _net.stdout | trim }}"
 
-    - name: "network-info | routing table"
+    - name: "네트워크-수집 | 라우팅 테이블"
       ansible.windows.win_shell: |
         Get-NetRoute -AddressFamily IPv4 |
           Where-Object { $_.DestinationPrefix -ne '255.255.255.255/32' } |
@@ -43,7 +43,7 @@
       changed_when: false
       when: _host_num != 4
 
-    - name: "network-info | dns servers"
+    - name: "네트워크-수집 | DNS 서버"
       ansible.windows.win_shell: |
         Get-DnsClientServerAddress -AddressFamily IPv4 |
           Select-Object InterfaceAlias, ServerAddresses |

@@ -10,7 +10,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / force-fail [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 강제-실패 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
   connection: ssh
@@ -26,11 +26,11 @@
 
   tasks:
 
-    - name: "force-fail | pre-fail notice"
+    - name: "강제-실패 | 실패 예고"
       ansible.builtin.debug:
         msg: "[{{ _host }}] this playbook will fail for suffix=1 host"
 
-    - name: "force-fail | intentional failure"
+    - name: "강제-실패 | 의도적 실패"
       ansible.builtin.fail:
         msg: "INTENTIONAL FAILURE for parsing test on {{ _host }}"
       when: _host_num == 1

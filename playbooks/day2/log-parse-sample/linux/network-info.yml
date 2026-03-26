@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / network-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 네트워크-수집 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
   connection: ssh
@@ -24,20 +24,20 @@
 
   tasks:
 
-    - name: "network-info | collect interfaces"
+    - name: "네트워크-수집 | IP 주소"
       ansible.builtin.command: ip addr show
       changed_when: false
       register: _net
 
-    - name: "network-info | interface result"
+    - name: "네트워크-수집 | 인터페이스 결과"
       ansible.builtin.debug:
         msg: "[{{ _host }}] ({{ _ip }}) | interfaces={{ _net.stdout_lines[:5] }}"
 
-    - name: "network-info | routing table"
+    - name: "네트워크-수집 | 라우팅 테이블"
       ansible.builtin.command: ip route show
       changed_when: false
       when: _host_num != 4
 
-    - name: "network-info | dns config"
+    - name: "네트워크-수집 | DNS 설정"
       ansible.builtin.command: cat /etc/resolv.conf
       changed_when: _host_num == 1

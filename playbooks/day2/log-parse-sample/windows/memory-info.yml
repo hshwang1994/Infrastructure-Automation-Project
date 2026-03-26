@@ -7,7 +7,7 @@
 # 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
-- name: "log-parse / memory-info [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+- name: "로그파싱 / 메모리-수집 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
   hosts: all
   gather_facts: false
 
@@ -27,7 +27,7 @@
 
   tasks:
 
-    - name: "memory-info | collect memory usage"
+    - name: "메모리-수집 | 프로세스 메모리"
       ansible.windows.win_shell: |
         $os = Get-CimInstance Win32_OperatingSystem
         "Total: {0:N0} MB | Free: {1:N0} MB | Used: {2:N0} MB ({3:N0}%)" -f `
@@ -38,16 +38,16 @@
       changed_when: false
       register: _mem
 
-    - name: "memory-info | memory result"
+    - name: "메모리-수집 | 메모리 결과"
       ansible.builtin.debug:
         msg: "[{{ _host }}] ({{ _ip }}) | {{ _mem.stdout | trim }}"
 
-    - name: "memory-info | mark as reviewed"
+    - name: "메모리-수집 | suffix=2 변경"
       ansible.builtin.debug:
         msg: "[{{ _host }}] memory collection reviewed"
       changed_when: _host_num == 2
 
-    - name: "memory-info | detailed physical memory"
+    - name: "메모리-수집 | WMI 메모리 상세"
       ansible.windows.win_shell: |
         Get-CimInstance Win32_PhysicalMemory |
           Select-Object BankLabel, Capacity, Speed |
