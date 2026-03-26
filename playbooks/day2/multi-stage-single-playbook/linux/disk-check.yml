@@ -25,7 +25,8 @@
     - name: "disk-check | high disk usage warning"
       ansible.builtin.debug:
         msg: >-
-          [WARN] {{ item.mount }} 사용률 {{ item.size_available | int * 100 // item.size_total | int }}% 이상
+          [WARN] {{ item.mount }} 사용률
+          {{ ((item.size_total | int - item.size_available | int) * 100 / item.size_total | int) | int }}%
           (available: {{ (item.size_available / 1073741824) | round(1) }}GB)
       loop: "{{ ansible_mounts }}"
       loop_control:

@@ -1,9 +1,13 @@
 ---
 # Windows 접속 계정 정보
 # 실제 값으로 교체 후 GitLab 에 커밋
-ansible_user:                          "CHANGE_ME"
-ansible_password:                      "CHANGE_ME"
-ansible_connection:                    "winrm"
-ansible_winrm_transport:               "ntlm"
-ansible_winrm_server_cert_validation:  "ignore"
-ansible_port:                          5985
+
+# 인증 정보
+ansible_user:     "CHANGE_ME"
+ansible_password: "CHANGE_ME"
+
+# WinRM 연결 설정
+ansible_connection:                   "winrm"
+ansible_winrm_transport:              "ntlm"
+ansible_winrm_server_cert_validation: "ignore"
+ansible_port:                         5985

@@ -111,7 +111,7 @@ def load_inventory_json() -> str:
 
 def collect_extra_vars(host: dict, exclude_fields: tuple) -> dict:
     """exclude_fields 를 제외한 모든 필드를 hostvars 용 dict 로 반환한다."""
-    return {k: v for k, v in host.items() if k not in exclude_fields and v}
+    return {k: v for k, v in host.items() if k not in exclude_fields and v is not None}
 
 
 def parse_host_redfish(host: dict, idx: int) -> tuple:
