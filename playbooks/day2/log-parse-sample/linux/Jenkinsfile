@@ -36,6 +36,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -52,6 +53,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -68,6 +70,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-mixed.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -84,6 +87,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -100,6 +104,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -116,6 +121,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-mixed.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -132,6 +138,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/host-condition.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -155,6 +162,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/memory-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -171,6 +179,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/memory-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -187,6 +196,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/network-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -203,6 +213,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/network-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -219,6 +230,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/host-condition.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -235,6 +247,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-mixed.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -258,6 +271,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/host-condition.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -274,6 +288,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/memory-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -290,6 +305,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/network-info.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -306,6 +322,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -322,6 +339,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -338,6 +356,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/status-mixed.yml",
                                 inventory : "${INV}",
                                 colorized : true
@@ -354,6 +373,7 @@ pipeline {
                     script {
                         try {
                             ansiblePlaybook(
+                                installation: 'ansible',
                                 playbook  : "${PB_DIR}/force-fail.yml",
                                 inventory : "${INV}",
                                 colorized : true

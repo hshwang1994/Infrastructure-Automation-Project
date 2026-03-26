@@ -23,11 +23,13 @@ pipeline {
         stage('Multi Gather') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/windows/network-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
                 )
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/windows/resource-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true

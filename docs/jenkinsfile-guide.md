@@ -44,9 +44,10 @@ pipeline {
         stage('Run Ansible') {
             steps {
                 ansiblePlaybook(
-                    playbook : "${WORKSPACE}/playbooks/작업경로/site.yml",
-                    inventory: "${WORKSPACE}/inventory/my_inventory.sh",
-                    colorized: true
+                    installation: 'ansible',
+                    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    colorized   : true
                 )
             }
         }

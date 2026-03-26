@@ -128,9 +128,10 @@ pipeline {
         stage('OS Install via BMC') {
             steps {
                 ansiblePlaybook(
-                    playbook : "${WORKSPACE}/playbooks/day1/os-install/redfish/site.yml",
-                    inventory: "${WORKSPACE}/inventory/my_inventory.sh",
-                    colorized: true
+                    installation: 'ansible',
+                    playbook    : "${WORKSPACE}/playbooks/day1/os-install/redfish/site.yml",
+                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    colorized   : true
                 )
             }
         }

@@ -92,7 +92,7 @@ PLAY RECAP ******
 
 Jenkinsfile에서 `withEnv(["RUN_ID=N"])` 으로 환경변수를 설정하고,
 Playbook에서 `lookup('env', 'RUN_ID')` 으로 읽어서 play name에 포함한다.
-`ansiblePlaybook()` 호출 형태는 기존 컨벤션(playbook, inventory, colorized)과 동일하게 유지한다.
+`ansiblePlaybook()` 호출 형태는 기존 컨벤션(installation, playbook, inventory, colorized)과 동일하게 유지한다.
 
 ## host별 분기
 

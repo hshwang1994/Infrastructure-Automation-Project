@@ -23,11 +23,13 @@ pipeline {
         stage('Host & Storage') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/windows/host-basic.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
                 )
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/windows/storage-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
@@ -38,11 +40,13 @@ pipeline {
         stage('Memory & Network') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/windows/memory-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
                 )
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/windows/network-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
@@ -53,6 +57,7 @@ pipeline {
         stage('Summary') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/windows/summary.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true

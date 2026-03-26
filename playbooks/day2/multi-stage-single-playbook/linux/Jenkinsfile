@@ -23,6 +23,7 @@ pipeline {
         stage('Service Check') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-single-playbook/linux/service-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
@@ -33,6 +34,7 @@ pipeline {
         stage('Disk Check') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-single-playbook/linux/disk-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
@@ -43,6 +45,7 @@ pipeline {
         stage('Verdict') {
             steps {
                 ansiblePlaybook(
+                    installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-single-playbook/linux/verdict.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true

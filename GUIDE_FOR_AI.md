@@ -68,13 +68,15 @@ environment {
 
 ```groovy
 ansiblePlaybook(
-    playbook : "${WORKSPACE}/playbooks/작업경로/site.yml",
-    inventory: "${WORKSPACE}/inventory/my_inventory.sh",
-    colorized: true
+    installation: 'ansible',
+    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+    colorized   : true
 )
 ```
 
-> `installation` 파라미터는 사용하지 않는다.
+> `installation: 'ansible'` 은 Jenkins Global Tool Configuration 에 등록된 Ansible 이름이다.
+> 경로(`/opt/ansible-env/bin`)는 Jenkins 설정에서 관리하며 Jenkinsfile 에 하드코딩하지 않는다.
 
 ### inventory_json defaultValue 작성법
 
@@ -195,7 +197,7 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] `environment` 에 `INVENTORY_JSON`, `TARGET_TYPE`, `REPO_ROOT` 가 있는가?
 - [ ] `inventory` 경로가 `${WORKSPACE}/inventory/my_inventory.sh` 인가?
 - [ ] `playbook` 경로가 `${WORKSPACE}/playbooks/...` 로 시작하는가?
-- [ ] `installation` 파라미터를 사용하지 않는가?
+- [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
 
 ### Playbook
 
