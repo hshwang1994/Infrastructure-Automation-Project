@@ -61,23 +61,47 @@ pipeline {
 | `target_type` | string | 포털이 전달하는 대상 종류 (linux \| windows \| esxi \| redfish) |
 | `inventory_json` | text | 포털이 전달하는 타겟 호스트 JSON 배열 |
 
-## inventory_json 필드 규칙
+## inventory_json 설계 원칙
 
-### 기본 필드 (4개)
+인벤토리 스크립트는 **"라우터"** 역할만 한다.
+`TARGET_TYPE` 을 보고 `inventory_hostname` / `ansible_host` 를 결정하고,
+나머지 필드는 이름이 뭐든 값이 뭐든 그대로 `hostvars` 에 전달한다.
 
-| 필드 | redfish | linux/windows/esxi | 설명 |
-|------|---------|-------------------|------|
-| `bmc_ip` | **필수** | 선택 | BMC 관리 IP |
-| `service_ip` | 선택 | **필수** | OS 서비스 IP (SSH/WinRM 접속) |
-| `hostname` | 선택 | **필수** | 호스트명 (Ansible 결과 로그에 표시) |
-| `vendor` | 선택 | 선택 | BMC 벤더 (dell \| hpe \| lenovo \| supermicro) |
+포털은 작업에 따라 어떤 필드든 자유롭게 추가할 수 있으며,
+인벤토리 스크립트가 그 필드를 알 필요 없이 playbook 에서 직접 참조한다.
 
-### 확장 필드
+### 인벤토리 스크립트가 사용하는 필드 (3개만)
 
-기본 4개 외의 필드는 작업별로 자유롭게 추가할 수 있다.
-포털에서 전달하지 않은 필드는 인벤토리 스크립트가 무시한다.
+| 필드 | 사용 조건 | 역할 |
+|------|----------|------|
+| `bmc_ip` | target_type == redfish 일 때 필수 | inventory_hostname + ansible_host |
+| `service_ip` | target_type != redfish 일 때 필수 | ansible_host |
+| `hostname` | target_type != redfish 일 때 필수 | inventory_hostname |
 
-예: OS 설치 작업에서 추가 필드가 필요한 경우
+이 3개 외의 모든 필드는 인벤토리 스크립트가 해석하지 않고 `hostvars` 에 그대로 통과시킨다.
+
+### 포털이 보내는 필드
+
+포털은 작업에 따라 자유롭게 필드를 구성한다.
+기본 4개(bmc_ip, service_ip, hostname, vendor) 중에서도 해당 작업에 필요 없으면 안 보낼 수 있다.
+
+**예시 — Linux 서비스 점검:**
+```json
+[
+  {"service_ip": "10.0.2.1", "hostname": "WEB-01"},
+  {"service_ip": "10.0.2.2", "hostname": "WEB-02"}
+]
+```
+
+**예시 — Redfish 펌웨어 확인:**
+```json
+[
+  {"bmc_ip": "10.0.1.1", "vendor": "dell"},
+  {"bmc_ip": "10.0.1.2", "vendor": "hpe"}
+]
+```
+
+**예시 — BMC 통한 OS 설치 (확장 필드 다수):**
 ```json
 [
   {
@@ -85,6 +109,11 @@ pipeline {
     "service_ip": "10.0.2.1",
     "hostname": "WEB-01",
     "vendor": "dell",
+    "mgmt_ip": "10.0.3.1",
+    "storage_ip": "10.0.4.1",
+    "gateway": "10.0.2.254",
+    "netmask": "255.255.255.0",
+    "dns_servers": "8.8.8.8,8.8.4.4",
     "os_image": "rhel-9.2",
     "boot_mode": "uefi"
   }

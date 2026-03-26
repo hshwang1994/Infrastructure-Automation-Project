@@ -30,13 +30,13 @@ pipeline {
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/linux/network-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
+
                     colorized   : true
                 )
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/single-stage-multi-playbook/linux/resource-check.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
+
                     colorized   : true
                 )
             }

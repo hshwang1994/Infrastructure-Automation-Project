@@ -30,13 +30,11 @@ pipeline {
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/host-basic.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
                     colorized   : true
                 )
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/storage-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
                     colorized   : true
                 )
             }
@@ -47,13 +45,11 @@ pipeline {
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/memory-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
                     colorized   : true
                 )
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/network-info.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
                     colorized   : true
                 )
             }
@@ -64,7 +60,6 @@ pipeline {
                 ansiblePlaybook(
                     playbook    : "${WORKSPACE}/playbooks/day2/multi-stage-multi-playbook/linux/summary.yml",
                     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
-                    installation: 'ansible',
                     colorized   : true
                 )
             }

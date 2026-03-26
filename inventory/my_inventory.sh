@@ -18,22 +18,24 @@ inventory_hostname 결정 규칙 (TARGET_TYPE 기반):
   - redfish  → inventory_hostname = bmc_ip,      ansible_host = bmc_ip
   - 그 외    → inventory_hostname = hostname,     ansible_host = service_ip
 
-기본 필드 (4개):
-  bmc_ip      — BMC 관리 IP (redfish 필수)
-  service_ip  — OS 서비스 IP (linux/windows/esxi 필수)
-  hostname    — 호스트명 (linux/windows/esxi 필수)
-  vendor      — BMC 벤더 (선택)
+설계 철학:
+  이 스크립트는 "라우터" 역할만 한다.
+  TARGET_TYPE 을 보고 inventory_hostname / ansible_host 를 결정하고,
+  나머지 필드는 이름이 뭐든 값이 뭐든 그대로 hostvars 에 전달한다.
+  필드의 의미 해석은 각 playbook 의 책임이다.
 
-  이 외의 필드는 작업별로 자유롭게 추가 가능하며,
-  모두 hostvars 에 그대로 전달된다.
+  포털은 작업에 따라 어떤 필드든 자유롭게 추가할 수 있으며,
+  이 스크립트는 그 필드들을 모두 hostvars 에 포함시킨다.
 
-INVENTORY_JSON 형식:
+INVENTORY_JSON 형식 예시:
   [
     {
       "bmc_ip":     "10.0.1.1",
       "service_ip": "10.0.2.1",
       "hostname":   "WEB-01",
-      "vendor":     "dell"
+      "vendor":     "dell",
+      "mgmt_ip":    "10.0.3.1",
+      "os_image":   "rhel-9.2"
     }
   ]
 """
@@ -43,9 +45,6 @@ import json
 import os
 import pathlib
 import sys
-
-# ── 기본 필드 정의 ──────────────────────────────────────────────────
-BASE_FIELDS = ("bmc_ip", "service_ip", "hostname", "vendor")
 
 
 # ── 유틸리티 ────────────────────────────────────────────────────────
@@ -66,7 +65,7 @@ def validate_ip(value: str, field_name: str, idx: int) -> None:
 
 def get_field(host: dict, field: str, idx: int, required: bool = False) -> str:
     """호스트 dict 에서 필드 값을 꺼낸다. required=True 면 없을 시 에러."""
-    value = host.get(field, "").strip()
+    value = str(host.get(field, "")).strip()
     if required and not value:
         error(f"항목[{idx}]에 '{field}' 필드가 필수인데 비어있습니다: {host}")
     return value
@@ -110,6 +109,11 @@ def load_inventory_json() -> str:
 
 # ── 호스트 파싱 ─────────────────────────────────────────────────────
 
+def collect_extra_vars(host: dict, exclude_fields: tuple) -> dict:
+    """exclude_fields 를 제외한 모든 필드를 hostvars 용 dict 로 반환한다."""
+    return {k: v for k, v in host.items() if k not in exclude_fields and v}
+
+
 def parse_host_redfish(host: dict, idx: int) -> tuple:
     """redfish 호스트를 파싱한다. (inventory_hostname = bmc_ip)"""
     bmc_ip = get_field(host, "bmc_ip", idx, required=True)
@@ -118,15 +122,8 @@ def parse_host_redfish(host: dict, idx: int) -> tuple:
     key = bmc_ip
     host_vars = {"ansible_host": bmc_ip}
 
-    # 선택 필드: service_ip 가 있으면 검증 후 포함
-    service_ip = get_field(host, "service_ip", idx)
-    if service_ip:
-        validate_ip(service_ip, "service_ip", idx)
-
-    # 기본 필드 외 모든 필드를 hostvars 에 전달 (bmc_ip 제외 — 이미 ansible_host)
-    for field, value in host.items():
-        if field != "bmc_ip" and value:
-            host_vars[field] = value
+    # bmc_ip 외 모든 필드를 hostvars 에 그대로 전달
+    host_vars.update(collect_extra_vars(host, ("bmc_ip",)))
 
     return key, host_vars
 
@@ -140,15 +137,8 @@ def parse_host_os(host: dict, idx: int) -> tuple:
     key = hostname
     host_vars = {"ansible_host": service_ip}
 
-    # 선택 필드: bmc_ip 가 있으면 검증 후 포함
-    bmc_ip = get_field(host, "bmc_ip", idx)
-    if bmc_ip:
-        validate_ip(bmc_ip, "bmc_ip", idx)
-
-    # 기본 필드 외 모든 필드를 hostvars 에 전달 (hostname, service_ip 제외)
-    for field, value in host.items():
-        if field not in ("hostname", "service_ip") and value:
-            host_vars[field] = value
+    # hostname, service_ip 외 모든 필드를 hostvars 에 그대로 전달
+    host_vars.update(collect_extra_vars(host, ("hostname", "service_ip")))
 
     return key, host_vars
 
