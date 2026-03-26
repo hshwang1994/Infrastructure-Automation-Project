@@ -14,6 +14,10 @@
   vars_files:
     - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
 
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+
   tasks:
 
     - name: "host-basic | hostname"

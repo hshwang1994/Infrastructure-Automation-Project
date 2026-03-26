@@ -7,12 +7,7 @@ pipeline {
         text(
             name        : 'inventory_json',
             defaultValue: '''[
-  {
-    "bmc_ip": "",
-    "service_ip": "",
-    "hostname": "",
-    "vendor": ""
-  }
+  { "service_ip": "", "hostname": "" }
 ]''',
             description : '포털에서 전달하는 타겟 호스트 JSON'
         )
