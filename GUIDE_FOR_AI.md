@@ -79,16 +79,19 @@ ansiblePlaybook(
 ### inventory_json defaultValue 작성법
 
 `defaultValue` 는 포털이 jspreadsheet 컬럼 정의로 사용한다.
-해당 작업에서 필요한 필드를 모두 빈 값으로 나열한다.
+**기본 4개 필드(`bmc_ip`, `service_ip`, `hostname`, `vendor`)는 항상 포함**하고,
+확장 필드가 필요하면 뒤에 추가한다.
 
-**Linux 서비스 점검 (기본 필드만):**
+포털이 값을 안 던져주는 필드는 빈 문자열로 들어오며, 정상 동작한다.
+
+**기본 (모든 Jenkinsfile 공통):**
 ```groovy
 defaultValue: '''[
-  { "service_ip": "", "hostname": "" }
+  { "bmc_ip": "", "service_ip": "", "hostname": "", "vendor": "" }
 ]'''
 ```
 
-**BMC OS 설치 (확장 필드 포함):**
+**확장 필드가 필요한 경우 (예: BMC OS 설치):**
 ```groovy
 defaultValue: '''[
   {

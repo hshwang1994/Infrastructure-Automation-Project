@@ -3,8 +3,9 @@
 ## 기본 골격
 
 모든 Jenkinsfile 은 아래 구조를 기본으로 한다.
-`loc`, `target_type`, `inventory_json` 은 포털이 전달하는 예약 파라미터이므로
-`defaultValue` 는 빈 값으로 유지한다.
+`loc`, `target_type`, `inventory_json` 은 포털이 전달하는 예약 파라미터이다.
+`inventory_json` 의 `defaultValue` 에는 기본 4개 필드(`bmc_ip`, `service_ip`, `hostname`, `vendor`)를 항상 포함한다.
+확장 필드가 필요하면 뒤에 추가한다.
 
 ```groovy
 pipeline {
@@ -82,22 +83,23 @@ playbook 에서 직접 참조한다.
 
 ### 포털이 보내는 필드
 
-포털은 작업에 따라 자유롭게 필드를 구성한다.
-기본 4개(bmc_ip, service_ip, hostname, vendor) 중에서도 해당 작업에 필요 없으면 안 보낼 수 있다.
+`defaultValue` 에는 기본 4개 필드를 항상 넣지만,
+포털이 실제로 보내는 값은 작업에 따라 다르다.
+필요 없는 필드는 빈 문자열로 들어오며, 정상 동작한다.
 
-**예시 — Linux 서비스 점검:**
+**예시 — Linux 서비스 점검 (bmc_ip, vendor 는 빈 값):**
 ```json
 [
-  {"service_ip": "10.0.2.1", "hostname": "WEB-01"},
-  {"service_ip": "10.0.2.2", "hostname": "WEB-02"}
+  {"bmc_ip": "", "service_ip": "10.0.2.1", "hostname": "WEB-01", "vendor": ""},
+  {"bmc_ip": "", "service_ip": "10.0.2.2", "hostname": "WEB-02", "vendor": ""}
 ]
 ```
 
-**예시 — Redfish 펌웨어 확인:**
+**예시 — Redfish 펌웨어 확인 (service_ip, hostname 은 빈 값):**
 ```json
 [
-  {"bmc_ip": "10.0.1.1", "vendor": "dell"},
-  {"bmc_ip": "10.0.1.2", "vendor": "hpe"}
+  {"bmc_ip": "10.0.1.1", "service_ip": "", "hostname": "", "vendor": "dell"},
+  {"bmc_ip": "10.0.1.2", "service_ip": "", "hostname": "", "vendor": "hpe"}
 ]
 ```
 
