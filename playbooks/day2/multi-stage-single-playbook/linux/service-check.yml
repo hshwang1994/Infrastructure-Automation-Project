@@ -3,7 +3,7 @@
 # multi-stage-single-playbook / service-check
 #
 # 서비스 상태와 포트 리스닝을 체크한다.
-# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
 - name: multi-stage-single-playbook / service-check

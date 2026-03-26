@@ -68,13 +68,13 @@ playbooks/day2/{작업명}/{OS타입}/
 | multi-stage-single-playbook | N스테이지, 1플레이북 | `day2/multi-stage-single-playbook/linux/` |
 | multi-stage-multi-playbook | N스테이지, N플레이북 | `day2/multi-stage-multi-playbook/linux/` |
 
-## 핵심 설계 원칙
+## 설계 원칙
 
 **인벤토리 스크립트 = 라우터**
 
-- `TARGET_TYPE` 을 보고 `inventory_hostname` / `ansible_host` 를 결정
-- 나머지 필드는 이름이 뭐든 값이 뭐든 그대로 `hostvars` 에 전달
-- 필드의 의미 해석은 각 Playbook 의 책임
+- `TARGET_TYPE` 을 보고 `inventory_hostname` / `ansible_host` 결정
+- 나머지 필드는 그대로 `hostvars` 에 전달
+- 필드 해석은 각 Playbook 에서 처리
 
 | target_type | inventory_hostname | ansible_host |
 |------------|-------------------|-------------|

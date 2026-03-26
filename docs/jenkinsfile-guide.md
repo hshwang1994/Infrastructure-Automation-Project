@@ -61,14 +61,14 @@ pipeline {
 | `target_type` | string | 포털이 전달하는 대상 종류 (linux \| windows \| esxi \| redfish) |
 | `inventory_json` | text | 포털이 전달하는 타겟 호스트 JSON 배열 |
 
-## inventory_json 설계 원칙
+## inventory_json 구조
 
-인벤토리 스크립트는 **"라우터"** 역할만 한다.
+인벤토리 스크립트는 라우터 역할만 한다.
 `TARGET_TYPE` 을 보고 `inventory_hostname` / `ansible_host` 를 결정하고,
-나머지 필드는 이름이 뭐든 값이 뭐든 그대로 `hostvars` 에 전달한다.
+나머지 필드는 그대로 `hostvars` 에 전달한다.
 
-포털은 작업에 따라 어떤 필드든 자유롭게 추가할 수 있으며,
-인벤토리 스크립트가 그 필드를 알 필요 없이 playbook 에서 직접 참조한다.
+포털은 작업에 따라 필드를 자유롭게 추가할 수 있고,
+playbook 에서 직접 참조한다.
 
 ### 인벤토리 스크립트가 사용하는 필드 (3개만)
 

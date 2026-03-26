@@ -145,9 +145,9 @@ hosts: all
 
 ---
 
-## 4. 인벤토리 라우터 설계
+## 4. 인벤토리 라우터
 
-인벤토리 스크립트(`my_inventory.sh`)는 **라우터** 역할만 한다.
+인벤토리 스크립트(`my_inventory.sh`)는 라우터 역할만 한다.
 
 ### inventory_hostname 결정 규칙
 

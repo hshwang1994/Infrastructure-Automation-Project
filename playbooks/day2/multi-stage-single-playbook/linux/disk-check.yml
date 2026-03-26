@@ -3,7 +3,7 @@
 # multi-stage-single-playbook / disk-check
 #
 # 디스크 사용률 경고와 /var/log 용량을 체크한다.
-# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
 - name: multi-stage-single-playbook / disk-check

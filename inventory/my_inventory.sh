@@ -18,14 +18,10 @@ inventory_hostname 결정 규칙 (TARGET_TYPE 기반):
   - redfish  → inventory_hostname = bmc_ip,      ansible_host = bmc_ip
   - 그 외    → inventory_hostname = hostname,     ansible_host = service_ip
 
-설계 철학:
-  이 스크립트는 "라우터" 역할만 한다.
+이 스크립트는 "라우터" 역할만 한다.
   TARGET_TYPE 을 보고 inventory_hostname / ansible_host 를 결정하고,
-  나머지 필드는 이름이 뭐든 값이 뭐든 그대로 hostvars 에 전달한다.
-  필드의 의미 해석은 각 playbook 의 책임이다.
-
-  포털은 작업에 따라 어떤 필드든 자유롭게 추가할 수 있으며,
-  이 스크립트는 그 필드들을 모두 hostvars 에 포함시킨다.
+  나머지 필드는 그대로 hostvars 에 전달한다.
+  필드 해석은 각 playbook 에서 처리한다.
 
 INVENTORY_JSON 형식 예시:
   [

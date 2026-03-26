@@ -3,7 +3,7 @@
 # multi-stage-multi-playbook / storage-info
 #
 # 디스크 사용량을 수집한다.
-# 멱등성: 완전 보장 (읽기 전용, 서버 변경 없음)
+# 읽기 전용 (서버 변경 없음)
 # =============================================================================
 
 - name: multi-stage-multi-playbook / storage-info
