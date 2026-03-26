@@ -20,8 +20,6 @@ pipeline {
         INVENTORY_JSON = "${params.inventory_json}"
         TARGET_TYPE    = "${params.target_type}"
         REPO_ROOT      = "${WORKSPACE}"
-        PB_DIR         = "${WORKSPACE}/playbooks/day2/log-parse-sample/linux"
-        INV            = "${WORKSPACE}/inventory/my_inventory.sh"
     }
 
     stages {
@@ -37,8 +35,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-ok-changed-skipped.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -54,8 +52,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-fail-rescue-ignore.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -71,8 +69,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-mixed.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-mixed.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -88,8 +86,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-ok-changed-skipped.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -105,8 +103,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-fail-rescue-ignore.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -122,8 +120,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-mixed.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-mixed.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -139,8 +137,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/host-condition.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/host-condition.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -163,8 +161,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/memory-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/memory-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -180,8 +178,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/memory-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/memory-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -197,8 +195,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/network-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/network-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -214,8 +212,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/network-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/network-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -231,8 +229,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/host-condition.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/host-condition.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -248,8 +246,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-mixed.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-mixed.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -272,8 +270,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/host-condition.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/host-condition.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -289,8 +287,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/memory-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/memory-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -306,8 +304,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/network-info.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/network-info.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -323,8 +321,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-ok-changed-skipped.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-ok-changed-skipped.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -340,8 +338,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-fail-rescue-ignore.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-fail-rescue-ignore.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -357,8 +355,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/status-mixed.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/status-mixed.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
@@ -374,8 +372,8 @@ pipeline {
                         try {
                             ansiblePlaybook(
                                 installation: 'ansible',
-                                playbook  : "${PB_DIR}/force-fail.yml",
-                                inventory : "${INV}",
+                                playbook  : "${WORKSPACE}/playbooks/day2/log-parse-sample/linux/force-fail.yml",
+                                inventory : "${WORKSPACE}/inventory/my_inventory.sh",
                                 colorized : true
                             )
                         } finally {
