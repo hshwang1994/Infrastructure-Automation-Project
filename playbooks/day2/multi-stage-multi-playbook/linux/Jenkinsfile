@@ -3,7 +3,7 @@ pipeline {
 
     parameters {
         string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치')
-        string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
+        choice(name: 'target_type', choices: ['linux', 'windows', 'esxi', 'redfish'], description: '포털 전달: 대상 종류')
         text(
             name        : 'inventory_json',
             defaultValue: '''[
