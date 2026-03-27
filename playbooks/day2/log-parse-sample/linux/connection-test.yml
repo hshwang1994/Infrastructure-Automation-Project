@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# 연결 테스트: unreachable 상태 유도
+#
+# 인벤토리에 접속 불가능한 IP(예: 10.100.64.199)를 포함하면
+# 해당 호스트에서 unreachable=1 이 발생한다.
+# 접속 가능한 호스트는 ok=1 로 정상 표시된다.
+# =============================================================================
+
+- name: "로그파싱 / 연결-테스트 [run={{ lookup('env', 'RUN_ID') | default('1') }}]"
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host: "{{ inventory_hostname }}"
+    _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _run:  "{{ lookup('env', 'RUN_ID') | default('1') }}"
+
+  tasks:
+
+    - name: "연결-테스트 | 접속 확인 (ping)"
+      ansible.builtin.ping:
+
+    - name: "연결-테스트 | 호스트 정보"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] 접속 성공 — {{ _ip }}"
