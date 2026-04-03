@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# 확장 필드 전달 테스트
+#
+# 인벤토리 스크립트가 기본 3개 필드(bmc_ip, service_ip, hostname) 외의
+# 모든 필드를 hostvars 에 그대로 전달하는지 검증한다.
+#
+# 테스트 확장 필드: asset_number, owner, fab, location, rack_number
+# =============================================================================
+
+- name: "확장 필드 전달 테스트"
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    _host:         "{{ inventory_hostname }}"
+    _ip:           "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
+    _asset_number: "{{ hostvars[inventory_hostname]['asset_number'] | default('') }}"
+    _owner:        "{{ hostvars[inventory_hostname]['owner'] | default('') }}"
+    _fab:          "{{ hostvars[inventory_hostname]['fab'] | default('') }}"
+    _location:     "{{ hostvars[inventory_hostname]['location'] | default('') }}"
+    _rack_number:  "{{ hostvars[inventory_hostname]['rack_number'] | default('') }}"
+
+  tasks:
+
+    - name: "확장필드 | 접속 확인"
+      ansible.builtin.ping:
+
+    - name: "확장필드 | 기본 정보 출력"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}] ip={{ _ip }}
+          | vendor={{ hostvars[inventory_hostname]['vendor'] | default('') }}
+
+    - name: "확장필드 | 확장 필드 출력"
+      ansible.builtin.debug:
+        msg: >-
+          [{{ _host }}]
+          asset_number={{ _asset_number }}
+          | owner={{ _owner }}
+          | fab={{ _fab }}
+          | location={{ _location }}
+          | rack_number={{ _rack_number }}
+
+    - name: "확장필드 | 빈 값 검증"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] WARNING: {{ item.name }} 이 비어있습니다"
+      loop:
+        - { name: "asset_number", value: "{{ _asset_number }}" }
+        - { name: "owner",        value: "{{ _owner }}" }
+        - { name: "fab",          value: "{{ _fab }}" }
+        - { name: "location",     value: "{{ _location }}" }
+        - { name: "rack_number",  value: "{{ _rack_number }}" }
+      when: item.value == ""
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: "확장필드 | 전체 hostvars 키 목록"
+      ansible.builtin.debug:
+        msg: "[{{ _host }}] hostvars keys = {{ hostvars[inventory_hostname].keys() | list | sort }}"
