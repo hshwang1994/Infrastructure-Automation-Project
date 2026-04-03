@@ -25,7 +25,6 @@ pipeline {
                 ansiblePlaybook(
                     installation: 'ansible',
                     playbook    : "${WORKSPACE}/playbooks/day2/single-stage-single-playbook/windows/site.yml",
-                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
                     colorized   : true
                 )
             }

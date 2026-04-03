@@ -70,13 +70,14 @@ environment {
 ansiblePlaybook(
     installation: 'ansible',
     playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
-    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
     colorized   : true
 )
 ```
 
 > `installation: 'ansible'` 은 Jenkins Global Tool Configuration 에 등록된 Ansible 이름이다.
 > 경로(`/opt/ansible-env/bin`)는 Jenkins 설정에서 관리하며 Jenkinsfile 에 하드코딩하지 않는다.
+
+> `inventory` 파라미터는 생략한다. 프로젝트 루트의 `ansible.cfg` 에서 `./inventory/my_inventory.sh` 를 기본 인벤토리로 지정하고 있다.
 
 ### inventory_json defaultValue 작성법
 
@@ -195,7 +196,7 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] `loc`, `target_type`, `inventory_json` 3개 파라미터가 있는가?
 - [ ] `defaultValue` 가 빈 값인가? (테스트용 IP 하드코딩 금지)
 - [ ] `environment` 에 `INVENTORY_JSON`, `TARGET_TYPE`, `REPO_ROOT` 가 있는가?
-- [ ] `inventory` 경로가 `${WORKSPACE}/inventory/my_inventory.sh` 인가?
+- [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
 - [ ] `playbook` 경로가 `${WORKSPACE}/playbooks/...` 로 시작하는가?
 - [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
 
