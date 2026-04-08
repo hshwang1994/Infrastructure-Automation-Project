@@ -1,0 +1,6 @@
+- name: Wait for RDP Service
+  wait_for:
+    host: "{{ service_ip }}"
+    port: 3389
+    timeout: 3600
+    state: started

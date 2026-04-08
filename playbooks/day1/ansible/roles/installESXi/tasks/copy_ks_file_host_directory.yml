@@ -1,0 +1,5 @@
+---
+- name: Copy ks.cfg to hosts base-img directory
+  ansible.builtin.copy:
+    src: "/ansible-semaphore/esxi/hosts/{{ hostname }}/KS.CFG"
+    dest: "/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img/KS.CFG"

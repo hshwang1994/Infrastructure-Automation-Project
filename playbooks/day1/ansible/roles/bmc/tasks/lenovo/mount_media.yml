@@ -1,0 +1,38 @@
+- name: Set common variables
+  set_fact:
+    version: "{{ esxi_version | default(rhel_version) | default(win_version) }}"
+    os_type: "{{ 'esxi' if esxi_version is defined else ('redhat' if rhel_version is defined else 'windows') }}"
+
+- name: LENOVO virtual media unmount (EXT1) before mount
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/1/VirtualMedia/EXT1"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body_format: json
+    body:
+      Inserted: false
+      Image: null
+    status_code: [200, 202, 204, 400]
+    force_basic_auth: yes
+    validate_certs: false
+  register: eject1_result
+
+- name: Check eject all media debug
+  ansible.builtin.debug:
+    msg: "{{ eject1_result }}"
+
+- name: Mount Media
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/1/VirtualMedia/EXT1"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body_format: json
+    body:
+      Image: "http://10.50.21.40/{{ os_type }}/hosts/{{ hostname }}/{{ version }}-custom-{{ hostname }}.iso"
+      Inserted: true
+    status_code: [200, 202, 204, 400]
+    force_basic_auth: yes
+    validate_certs: false
+  register: insert_result

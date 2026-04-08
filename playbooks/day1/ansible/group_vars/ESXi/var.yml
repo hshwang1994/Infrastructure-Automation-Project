@@ -1,0 +1,4 @@
+---
+esxi_iso_filename:               "VMware-ESXi-{{ vendor }}-{{ esxi_version }}.x86_64.iso"
+esxi_iso_baseImg_path:           "/ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}/{{ esxi_iso_filename }}"
+remote_server_esxi_iso_baseImg_path: "http://10.50.21.52/base-img/{{ vendor }}/{{ esxi_version }}/{{ esxi_iso_filename }}"

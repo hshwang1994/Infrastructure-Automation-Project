@@ -1,0 +1,11 @@
+  - name: Check Custom ISO exists
+    stat:
+      path: "/ansible-semaphore/redhat/hosts/{{ hostname }}/{{ rhel_version }}-custom-{{ hostname }}.iso"
+    register: custom_iso_stat
+  
+  - name: Create RHEL Custom ISO
+    shell: |
+      output_iso="/ansible-semaphore/redhat/hosts/{{ hostname }}/{{ rhel_version }}-custom-{{ hostname }}.iso"
+      xorriso -as mkisofs -r -J -V "RHEL-10-1-BaseOS-x86_64" -o $output_iso -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -isohybrid-gpt-basdat /ansible-semaphore/redhat/hosts/{{ hostname }}/base-img
+      
+    when: not custom_iso_stat.stat.exists

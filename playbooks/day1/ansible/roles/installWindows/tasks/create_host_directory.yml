@@ -1,0 +1,5 @@
+- name: Create directory
+  file:
+    path: "/ansible-semaphore/windows/hosts/{{ hostname }}"
+    state: directory
+    mode: '0755'

@@ -1,0 +1,149 @@
+
+# Storage Controller 전체 목록 조회
+- name: "Get Storage Controller list"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Storage/"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: storage_collection
+
+# 조회된 각 Controller의 상세 정보 반복 조회
+- name: "Get Storage Controller details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: controller_details
+  loop: "{{ storage_collection.json.Members }}"
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+
+# 각 Controller에 연결된 Physical Drive 상세 정보 반복 조회
+- name: "Get Physical Drive details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: pdisk_details
+  loop: >-
+    {{
+      controller_details.results
+      | map(attribute='json.Drives')
+      | flatten
+      | select('defined')
+    }}
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+
+# 각 Controller에 구성된 Logical Volume 목록 조회 (없을 경우 404 허용)
+- name: "Get Volume list per Controller"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item.json['@odata.id'] }}/Volumes/"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+    headers:
+      Accept: "application/json"
+  register: volume_list
+  loop: "{{ controller_details.results }}"
+  loop_control:
+    label: "{{ item.json.Id | default(item.json['@odata.id']) }}"
+
+# Volume 목록에서 각 Logical Volume 상세 정보 반복 조회
+- name: "Get Logical Volume details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: volume_details
+  loop: >-
+    {{
+      volume_list.results
+      | selectattr('json.Members', 'defined')
+      | map(attribute='json.Members')
+      | flatten
+    }}
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+
+# 결과
+# Controller 목록 및 상태 출력
+- name: "Print Storage Controller status"
+  ansible.builtin.debug:
+    msg:
+      - "[Controller #{{ ctrl_idx + 1 }}] {{ item.json.Id | default('N/A') }}"
+      - "  이름      : {{ item.json.Name | default('N/A') }}"
+      - "  상태      : {{ item.json.Status.State | default('N/A') }}"
+      - "  헬스      : {{ item.json.Status.Health | default('N/A') }}"
+      - "  드라이브수: {{ item.json.Drives | default([]) | length }}개"
+  loop: "{{ controller_details.results }}"
+  loop_control:
+    label: "{{ item.json.Id | default(item.json['@odata.id']) }}"
+    index_var: ctrl_idx
+
+# Physical Drive 목록 및 상태 출력
+- name: "Print Physical Drive status"
+  ansible.builtin.debug:
+    msg:
+      - "[{{ item.json.PhysicalLocation.PartLocation.ServiceLabel | default(item.json.Id | default('N/A')) }}]"
+      - "  상태 : {{ item.json.Status.State | default('N/A') }}"
+      - "  헬스 : {{ item.json.Status.Health | default('N/A') }}"
+      - "  타입 : {{ item.json.MediaType | default('N/A') }} / {{ item.json.Protocol | default('N/A') }}"
+      - "  용량 : {{ ((item.json.CapacityBytes | default(0)) / 1073741824) | int }} GiB"
+      - "  모델 : {{ item.json.Model | default('N/A') }}"
+  loop: "{{ pdisk_details.results }}"
+  loop_control:
+    label: "{{ item.json.Id | default(item.json['@odata.id']) }}"
+
+# Logical Volume 목록 및 상태 출력 (Volume이 존재하는 경우에만 실행)
+- name: "Print Logical Volume status"
+  ansible.builtin.debug:
+    msg:
+      - "[{{ item.json.Name | default(item.json.Id | default('N/A')) }}]"
+      - "  RAID 타입: {{ item.json.RAIDType | default(item.json.VolumeType | default('N/A')) }}"
+      - "  상태     : {{ item.json.Status.State | default('N/A') }}"
+      - "  헬스     : {{ item.json.Status.Health | default('N/A') }}"
+      - "  용량     : {{ ((item.json.CapacityBytes | default(0)) / 1073741824) | int }} GiB"
+  loop: "{{ volume_details.results }}"
+  loop_control:
+    label: "{{ item.json.Name | default(item.json['@odata.id']) }}"
+  when: volume_details.results | length > 0
+
+# 구성된 Logical Volume이 존재하면 경고 후 fail 처리
+- name: "Fail if Logical Volume already exists"
+  ansible.builtin.fail:
+    msg: "이미 구성된 Logical Volume이 존재합니다. RAID 구성을 진행할 수 없습니다."
+  when: volume_details.results | length > 0
+
+# 구성된 Logical Volume이 없을 경우 안내 메시지 출력
+- name: "Print no Logical Volume message"
+  ansible.builtin.debug:
+    msg: "구성된 Logical Volume이 없습니다."
+  when: volume_details.results | length == 0

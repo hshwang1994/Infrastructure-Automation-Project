@@ -1,0 +1,17 @@
+- name: Check parameters value
+  set_fact:
+    parameters:
+      hostname: "{{ hostname }}"
+      dns_name: "{{ dns_name }}"
+      service_ip: "{{ service_ip }}"
+      bmc_ip: "{{ bmc_ip }}"
+      gateway: "{{ gateway }}"
+      dns_server: "{{ dns_server }}"
+      ntp_server: "{{ ntp_server }}"
+      vlan_id: "{{ vlan_id }}"
+      win_version: "{{ win_version }}"
+      username: "{{ username }}"
+    
+- name: Debug hostname
+  debug:
+    msg: "{{ parameters }}"

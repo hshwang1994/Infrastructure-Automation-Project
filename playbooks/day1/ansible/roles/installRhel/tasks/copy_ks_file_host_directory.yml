@@ -1,0 +1,4 @@
+  - name: Copy KS.CFG to extracted directory
+    copy:
+      src: "/ansible-semaphore/redhat/hosts/{{ hostname }}/ks.cfg"
+      dest: "/ansible-semaphore/redhat/hosts/{{ hostname }}/base-img/ks.cfg"

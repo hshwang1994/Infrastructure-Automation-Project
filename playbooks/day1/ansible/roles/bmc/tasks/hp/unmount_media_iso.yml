@@ -1,0 +1,24 @@
+- name: HP server eject virtual media
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/1/VirtualMedia/2/Actions/VirtualMedia.EjectMedia"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body_format: json
+    status_code: [200, 202, 204, 400]
+    force_basic_auth: yes
+    validate_certs: false
+  register: eject2_result
+  failed_when: >
+    eject2_result.status == 400 and
+    (
+      eject2_result.json is not defined or
+      eject2_result.json.error is not defined or
+      eject2_result.json.error['@Message.ExtendedInfo'] is not defined or
+      eject2_result.json.error['@Message.ExtendedInfo'] | length == 0 or
+      'NoVirtualMedia' not in eject2_result.json.error['@Message.ExtendedInfo'][0].MessageId
+    )
+
+- name: Check eject all media debug
+  ansible.builtin.debug:
+    msg: "{{ eject2_result }}"

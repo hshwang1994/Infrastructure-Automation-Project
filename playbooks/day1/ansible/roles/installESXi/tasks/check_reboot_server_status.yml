@@ -1,0 +1,39 @@
+---
+- name: Wait for ESXi 1st Boot 
+  wait_for:
+    host: "{{ service_ip }}"
+    port: 443
+    timeout: 1800
+    state: started
+  register: first_Reboot_status
+
+- name: Debug ESXi 1st Boot Status
+  ansible.builtin.debug:
+    msg:
+      - "Port 443 is UP after 1st Boot."
+      - "{{ first_Reboot_status }}"
+
+- name: Wait for ESXi 2nd Boot 
+  delegate_to: localhost
+  run_once: true
+  ansible.builtin.pause:
+    seconds: 200
+
+- name: Debug Wait for 2nd Boot 
+  ansible.builtin.debug:
+    msg: "Pause Installing 200 sec For 2nd Boot"
+
+
+- name: Check status for ESXi install second reboot
+  wait_for:
+    host: "{{ service_ip }}"
+    port: 443
+    timeout: 1800
+    state: started
+  register: second_Reboot_status
+
+- name: Debug Second Reboot Status
+  ansible.builtin.debug:
+    msg:
+      - "Port 443 is UP after 2nd Boot."
+      - "{{ second_Reboot_status }}"

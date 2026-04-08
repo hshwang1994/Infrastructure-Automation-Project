@@ -1,0 +1,15 @@
+---
+- name: Check parameters value
+  set_fact:
+    parameters:
+      hostname: "{{ hostname }}"
+      service_ip: "{{ service_ip }}"
+      bmc_ip: "{{ bmc_ip }}"
+      esxi_version: "{{ esxi_version }}"
+      username: "{{ username }}"
+      vendor: "{{ vendor }}"
+    
+- name: Debug Parameter Value
+  debug:
+    msg: "{{ parameters }}"
+

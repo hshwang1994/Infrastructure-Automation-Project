@@ -1,0 +1,4 @@
+- name: Generate Windows autounattend.xml File
+  template:
+    src: autounattend.xml.j2
+    dest: "/ansible-semaphore/windows/hosts/{{ hostname }}/autounattend.xml"

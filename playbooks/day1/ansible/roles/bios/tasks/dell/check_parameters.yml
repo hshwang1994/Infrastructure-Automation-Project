@@ -1,0 +1,21 @@
+---
+- name: Check parameters value
+  set_fact:
+    parameters:
+      bmc_ip: "{{ bmc_ip }}"
+      username: "{{ username }}"
+      vendor: "{{ vendor }}"
+      SystemProfile: "{{ system_profile }}"
+
+
+- name: Debug Parameter Value
+  debug:
+    msg: "{{ parameters }}"
+
+- name: Validate system_profile Input Value 
+  fail:
+    msg: "Invalid system_profile: '{{ system_profile }}'. Valid values: PerfOptimized"
+  when: system_profile | lower not in ['perfoptimized']
+
+
+

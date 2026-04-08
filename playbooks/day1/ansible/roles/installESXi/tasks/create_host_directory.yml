@@ -1,0 +1,6 @@
+---
+- name: Create Host Directory
+  ansible.builtin.file:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}"
+    state: directory
+    mode: '0755'

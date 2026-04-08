@@ -1,0 +1,25 @@
+---
+- name: Pre-check ISO Image file
+  ansible.builtin.stat:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}/{{ esxi_version }}-custom-{{ hostname }}.iso"
+  register: preCheck_iso_image_result
+
+- name: Create ESXi-Custom ISO
+  shell: |
+    img_dir="/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img"
+    ks_cfg="$img_dir/KS.CFG"
+
+    if [ -f "$ks_cfg" ]; then
+      grep -Fwi "{{ hostname }}" "$ks_cfg" || { echo "KS.CFG doesn't contain hostname"; exit 1; }
+      mkisofs -relaxed-filenames -J -R -o /ansible-semaphore/esxi/hosts/{{ hostname }}/{{ esxi_version }}-custom-{{ hostname }}.iso -b ISOLINUX.BIN -c BOOT.CAT -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -eltorito-platform efi -b EFIBOOT.IMG -no-emul-boot "$img_dir"
+    else
+      echo "KS.CFG File not found"
+      exit 1
+    fi
+  when: not preCheck_iso_image_result.stat.exists
+  register: create_custom_esxi_result
+
+- name: Debug Create ESXi Custom ISO
+  ansible.builtin.debug:
+    msg: "{{ create_custom_esxi_result }}"
+  when: create_custom_esxi_result is defined

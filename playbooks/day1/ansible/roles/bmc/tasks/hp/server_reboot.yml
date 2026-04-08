@@ -1,0 +1,17 @@
+- name: Hp server reboot
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      ResetType: GracefulRestart
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: yes
+    validate_certs: false
+  register: reboot_result
+
+- name: Show server reboot process result
+  ansible.builtin.debug:
+    msg: "{{ reboot_result }}"

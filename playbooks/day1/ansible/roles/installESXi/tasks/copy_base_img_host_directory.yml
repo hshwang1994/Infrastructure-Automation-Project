@@ -1,0 +1,12 @@
+---
+- name: Copy base-img file per host
+  ansible.builtin.copy:
+    src: "/ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}/"
+    dest: "/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img/"
+    remote_src: yes
+
+- name: Remove ISO file from host base-img directory
+  ansible.builtin.file:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img/{{ esxi_iso_filename }}"
+    state: absent
+

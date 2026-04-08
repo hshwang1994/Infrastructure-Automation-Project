@@ -1,0 +1,4 @@
+  - name: Copy Autounattend to extracted directory
+    copy:
+      src: "/ansible-semaphore/windows/hosts/{{ hostname }}/autounattend.xml"
+      dest: "/ansible-semaphore/windows/hosts/{{ hostname }}/base-img/autounattend.xml"

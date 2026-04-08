@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend"
+          xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+
+  <!-- ================================================= -->
+  <!-- windowsPE -->
+  <!-- ================================================= -->
+  <settings pass="windowsPE">
+
+    <component name="Microsoft-Windows-International-Core-WinPE"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS">
+      <SetupUILanguage>
+        <UILanguage>en-US</UILanguage>
+      </SetupUILanguage>
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+
+    <component name="Microsoft-Windows-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS">
+
+      <DiskConfiguration>
+        <Disk wcm:action="add">
+          <DiskID>0</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
+
+          <CreatePartitions>
+            <CreatePartition wcm:action="add">
+              <Order>1</Order>
+              <Type>EFI</Type>
+              <Size>260</Size>
+            </CreatePartition>
+            <CreatePartition wcm:action="add">
+              <Order>2</Order>
+              <Type>MSR</Type>
+              <Size>16</Size>
+            </CreatePartition>
+            <CreatePartition wcm:action="add">
+              <Order>3</Order>
+              <Type>Primary</Type>
+              <Extend>true</Extend>
+            </CreatePartition>
+          </CreatePartitions>
+
+          <ModifyPartitions>
+            <ModifyPartition wcm:action="add">
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
+              <Format>FAT32</Format>
+              <Label>System</Label>
+            </ModifyPartition>
+            <ModifyPartition wcm:action="add">
+              <Order>2</Order>
+              <PartitionID>3</PartitionID>
+              <Format>NTFS</Format>
+              <Label>Windows</Label>
+              <Letter>C</Letter>
+            </ModifyPartition>
+          </ModifyPartitions>
+        </Disk>
+      </DiskConfiguration>
+
+      <ImageInstall>
+        <OSImage>
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Key>/IMAGE/NAME</Key>
+              <Value>Windows Server 2022 SERVERSTANDARD</Value>
+            </MetaData>
+          </InstallFrom>
+          <InstallTo>
+            <DiskID>0</DiskID>
+            <PartitionID>3</PartitionID>
+          </InstallTo>
+          <WillShowUI>OnError</WillShowUI>
+        </OSImage>
+      </ImageInstall>
+
+      <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>Baremetal Automation</FullName>
+        <Organization>DGITECH</Organization>
+      </UserData>
+
+    </component>
+  </settings>
+
+  <!-- ================================================= -->
+  <!-- specialize -->
+  <!-- ================================================= -->
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS">
+      <ComputerName>{{ hostname }}</ComputerName>
+      <RegisteredOwner>Baremetal Automation</RegisteredOwner>
+      <RegisteredOrganization>DGITECH</RegisteredOrganization>
+    </component>
+  </settings>
+
+  <!-- ================================================= -->
+  <!-- oobeSystem -->
+  <!-- ================================================= -->
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64"
+               publicKeyToken="31bf3856ad364e35"
+               language="neutral"
+               versionScope="nonSxS">
+
+      <TimeZone>Korea Standard Time</TimeZone>
+
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <NetworkLocation>Work</NetworkLocation>
+        <ProtectYourPC>1</ProtectYourPC>
+      </OOBE>
+
+      <UserAccounts>
+        <AdministratorPassword>
+          <Value>VMware1!</Value>
+          <PlainText>true</PlainText>
+        </AdministratorPassword>
+      </UserAccounts>
+
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <Username>Administrator</Username>
+        <Password>
+          <Value>VMware1!</Value>
+          <PlainText>true</PlainText>
+        </Password>
+        <LogonCount>1</LogonCount>
+      </AutoLogon>
+
+      <!-- PowerShell 분리: 파일 실행만 -->
+
+      <FirstLogonCommands>
+      <!--
+        <SynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Description>POST - Copy Lenovo content already staged and run OneCLI update</Description>
+          <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File C:\Windows\Setup\Scripts\post-onecli.ps1</CommandLine>
+        </SynchronousCommand>
+      -->
+
+        <SynchronousCommand wcm:action="add">
+          <Order>2</Order>
+	  <Description>Run Network Configuration Script (net.ps1)</Description>
+	  <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File C:\Windows\Setup\Scripts\net.ps1 -VlanID {{ vlan_id }} -IP {{ service_ip }} -Gateway {{ gateway }} -DNS {{ dns_server }}</CommandLine>
+        </SynchronousCommand>
+
+        <SynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Description>Final reboot windows</Description>
+          <CommandLine>cmd /c shutdown /r /t 10 /c "reboot Windows"</CommandLine>
+        </SynchronousCommand>
+
+
+      </FirstLogonCommands>
+      
+    </component>
+  </settings>
+
+</unattend>
+

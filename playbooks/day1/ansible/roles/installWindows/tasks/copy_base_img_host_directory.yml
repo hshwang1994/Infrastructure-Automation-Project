@@ -1,0 +1,5 @@
+  - name: Copy base image to host directory
+    copy:
+      src: "/ansible-semaphore/base-img/ISO/WINDOWS/{{ win_version }}/"
+      dest: "/ansible-semaphore/windows/hosts/{{ hostname }}/base-img/"
+      remote_src: yes

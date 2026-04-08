@@ -1,0 +1,32 @@
+---
+- hosts: localhost
+  gather_facts: true
+  connection: local
+
+  vars_files:
+    - ../../group_vars/all.yml
+
+  vars:
+    inventory: "{{ lookup('env', 'INVENTORY_JSON') | from_json }}"
+    host:   "{{ inventory[0] }}"
+    bmc_ip: "{{ host.bmc_ip | default('') }}"
+    username:    "{{ host.username    | default('') }}"
+    vendor:      "{{ host.vendor      | default('') }}"
+    vendor_name:
+      lenovo:
+        role: raid
+        task: lenovo/lenovo_raid_status_check.yml
+      
+  tasks:
+    - name: Validate vendor variable
+      ansible.builtin.assert:
+        that:
+          - vendor is defined
+          - vendor | length > 0
+          - vendor in vendor_name.keys()
+        fail_msg: "Invalid vendor value: {{ vendor | default('undefined') }}. Support vendors: {{ vendor_name.keys() | join(', ') }}"
+
+    - name: "Lenovo Raid-OS Volume Check & Status"
+      include_role:
+        name: "{{ vendor_name[vendor].role }}"
+        tasks_from: "{{ vendor_name[vendor].task }}"

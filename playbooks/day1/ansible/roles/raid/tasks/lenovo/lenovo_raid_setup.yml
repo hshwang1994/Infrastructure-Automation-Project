@@ -1,0 +1,227 @@
+
+# Storage Controller 전체 목록 조회
+- name: "Get Storage Controller collection"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Storage/"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: storage_collection
+
+# 조회된 각 Controller의 상세 정보 반복 조회
+- name: "Get Storage Controller details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: controller_details_raw
+  loop: "{{ storage_collection.json.Members }}"
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+
+# Drive 보유 + Enabled 상태인 Controller만 필터링
+- name: "Filter active RAID Controllers"
+  ansible.builtin.set_fact:
+    active_controllers: >-
+      {{
+        controller_details_raw.results
+        | selectattr('json.Drives', 'defined')
+        | selectattr('json.Drives', 'ne', [])
+        | selectattr('json.Status.State', 'equalto', 'Enabled')
+        | list
+      }}
+
+# 활성 Controller가 없으면 플레이북 중단
+- name: "Fail if no active Controller found"
+  ansible.builtin.fail:
+    msg: "No RAID configurable Storage Controllers found."
+  when: active_controllers | length == 0
+
+# 첫 번째 활성 Controller의 경로와 Drive 목록을 변수로 저장
+- name: "Set selected Controller path and drives"
+  ansible.builtin.set_fact:
+    selected_controller_path: "{{ active_controllers[0].json['@odata.id'] }}"
+    selected_controller_drives: "{{ active_controllers[0].json.Drives }}"
+
+# 선택된 Controller에 연결된 Physical Drive 상세 정보 반복 조회
+- name: "Get Physical Drive details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: disk_details_raw
+  loop: "{{ selected_controller_drives }}"
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+
+# Slot 0, 1 (Bay 1, 2에 해당) 드라이브만 필터링 (Absent 슬롯 제외)
+- name: "Filter target drives on Slot 0 and 1"
+  ansible.builtin.set_fact:
+    target_disks: >-
+      {{
+        disk_details_raw.results
+        | selectattr('json.PhysicalLocation.PartLocation.LocationOrdinalValue', 'defined')
+        | selectattr('json.PhysicalLocation.PartLocation.LocationOrdinalValue', 'in', [0, 1])
+        | rejectattr('json.Status.State', 'equalto', 'Absent')
+        | list
+      }}
+
+# 대상 드라이브가 2개 미만이면 플레이북 중단
+- name: "Fail if target drives are less than 2"
+  ansible.builtin.fail:
+    msg: >
+      Slot 0 또는 Slot 1에 드라이브가 없습니다.
+      발견된 드라이브: {{ target_disks | length }}개.
+      RAID-1 구성을 위해 2개의 드라이브가 필요합니다.
+  when: target_disks | length < 2
+
+# include_role 반복 호출 시 drive_uris 누적 방지를 위해 초기화
+- name: "Initialize drive_uris"
+  ansible.builtin.set_fact:
+    drive_uris: []
+
+# 대상 드라이브의 @odata.id URI를 목록으로 추출 (dot notation 사용 불가로 loop 처리)
+- name: "Extract target drive URIs"
+  ansible.builtin.set_fact:
+    drive_uris: "{{ drive_uris + [item.json['@odata.id']] }}"
+  loop: "{{ target_disks }}"
+  loop_control:
+    label: "{{ item.json['@odata.id'] }}"
+
+# 선택된 Controller의 기존 Volume 목록 조회 (없을 경우 404 허용)
+- name: "Get existing Volume list"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ selected_controller_path }}/Volumes"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 404]
+    headers:
+      Accept: "application/json"
+  register: existing_volumes
+
+# 기존 Volume이 있을 경우 각 Volume의 상세 정보 조회
+- name: "Get existing Volume details"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: existing_vol_details
+  loop: "{{ existing_volumes.json.Members | default([]) }}"
+  loop_control:
+    label: "{{ item['@odata.id'] }}"
+  when: existing_volumes.status == 200
+
+# 기존 Volume 중 RAID-1 타입이 존재하는지 여부를 변수로 저장
+- name: "Check if RAID-1 already exists"
+  ansible.builtin.set_fact:
+    raid1_exists: >-
+      {{
+        (existing_vol_details.results | default([]))
+        | selectattr('json.RAIDType', 'defined')
+        | selectattr('json.RAIDType', 'equalto', 'RAID1')
+        | list | length > 0
+      }}
+
+# 기존 RAID-1이 존재하면 플레이북 실패 처리
+- name: "Fail if RAID-1 already exists"
+  ansible.builtin.fail:
+    msg: "이미 RAID-1 Volume이 존재합니다."
+  when: raid1_exists | bool
+
+# 응답코드 201이 정상, 202는 비동기 처리
+- name: "POST RAID-1 Volume creation request"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ selected_controller_path }}/Volumes"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    timeout: 120
+    status_code: [200, 201, 202]
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    body_format: json
+    body:
+      RAIDType: "RAID1"
+      Name: "OS_DISK_RAID1"
+      Links:
+        Drives:
+          - "@odata.id": "{{ drive_uris[0] }}"
+          - "@odata.id": "{{ drive_uris[1] }}"
+  register: create_result
+  ignore_errors: true
+
+# 응답 코드 기준으로 성공 / 타임아웃 여부를 변수로 저장
+- name: "Evaluate creation result"
+  ansible.builtin.set_fact:
+    create_timed_out: "{{ create_result.status | default(-1) == -1 }}"
+    create_succeeded: "{{ create_result.status | default(-1) in [200, 201, 202] }}"
+
+# 타임아웃이 아닌 실제 오류인 경우 플레이북 중단
+- name: "Fail if creation failed (not timeout)"
+  ansible.builtin.fail:
+    msg: "RAID Volume 생성 실패: {{ create_result.msg | default('알 수 없는 오류') }}"
+  when:
+    - not create_succeeded
+    - not create_timed_out
+
+# 타임아웃 또는 202(비동기) 발생 시 처리 완료까지 30초 대기
+- name: "Wait for RAID configuration to complete"
+  ansible.builtin.pause:
+    seconds: 30
+    prompt: "RAID 구성 중... 잠시 대기합니다."
+  when: create_timed_out or create_result.status == 202
+
+# Volume 생성 완료 여부 확인을 위해 Volume 목록 재조회
+- name: "Verify created Volume"
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip }}{{ selected_controller_path }}/Volumes"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+    headers:
+      Accept: "application/json"
+  register: volume_check
+
+# 최종 구성 결과 출력
+- name: "Print RAID-1 setup result"
+  ansible.builtin.debug:
+    msg:
+      - "서버 IP  : {{ bmc_ip }}"
+      - "RAID     : RAID1 (Slot 0 + Slot 1)"
+      - "Drive[0] : {{ drive_uris[0] }}"
+      - "Drive[1] : {{ drive_uris[1] }}"
+      - "응답코드 : {{ create_result.status }}"
+      - "Volume 수: {{ volume_check.json['Members@odata.count'] | default(volume_check.json.Members | length) }}개"
+      - "※ 서버 재부팅 후 RAID 구성이 활성화됩니다."

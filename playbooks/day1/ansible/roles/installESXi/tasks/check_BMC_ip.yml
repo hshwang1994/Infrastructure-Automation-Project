@@ -1,0 +1,9 @@
+---
+- name: Check BMCip usage Check
+  shell: "ping -c 5 {{ bmc_ip }}"
+  register: result_check_BMC_IP
+  failed_when: result_check_BMC_IP.rc != 0
+
+- name: Debug Check BMC ICMP Result
+  ansible.builtin.debug:
+    msg: "{{ result_check_BMC_IP }}"

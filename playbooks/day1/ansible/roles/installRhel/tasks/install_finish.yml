@@ -1,0 +1,13 @@
+- name: Install complete
+  debug:
+    msg: "{{ hostname }} install complete"
+
+- name: Remove Custom ISO
+  ansible.builtin.file:
+    path: "/ansible-semaphore/redhat/hosts/{{ hostname }}/{{ rhel_version }}-custom-{{ hostname }}.iso"
+    state: absent
+
+- name: Remove base-img directory
+  ansible.builtin.file:
+    path: "/ansible-semaphore/redhat/hosts/{{ hostname }}/base-img"
+    state: absent

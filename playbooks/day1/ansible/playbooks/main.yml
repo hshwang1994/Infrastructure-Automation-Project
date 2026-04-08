@@ -1,0 +1,23 @@
+---
+- hosts: localhost
+  gather_facts: true
+  connection: local
+
+  vars_files:
+    - ../group_vars/all.yml
+
+  vars:
+    vendor_name:
+      lenovo:
+        role: bmc/lenovo
+        task: mount_media.yml
+      
+      hp:
+        role: HpBmc
+        task: mount_media.yml
+
+  tasks:
+    - name: "Umount media & Mount Network file RHEL 8.10 ISO"
+      include_role:
+        name: "{{ vendor_name[vendor].role }}"
+        tasks_from: "{{ vendor_name[vendor].task }}"

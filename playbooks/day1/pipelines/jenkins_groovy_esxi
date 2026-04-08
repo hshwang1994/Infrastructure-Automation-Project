@@ -1,0 +1,166 @@
+// inventory_json 입력 예시 (원본 Jenkinsfile 의 기본값을 그대로 옮겨둔 값입니다):
+// [
+//   { "hostname": "test0002", "service_ip": "10.50.21.97", "bmc_ip": "10.50.11.164", "esxi_version": "8.0u3b", "username": "root", "vendor": "dell", "vlan_id": "21", "gateway": "10.50.21.1", "dns_server": "10.50.21.250", "ntp_server": "10.50.21.251", "dns_name": "hynix.com" }
+// ]
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc', defaultValue: 'ansible', trim: true)
+        choice(name: 'target_type', choices: ['redfish'])
+        text(name: 'inventory_json', defaultValue: '''[
+  { "hostname": "", "service_ip": "", "bmc_ip": "", "esxi_version": "", "username": "", "vendor": "", "vlan_id": "", "gateway": "", "dns_server": "", "ntp_server": "", "dns_name": "" }
+]''')
+    }
+
+    environment {
+        INVENTORY_JSON     = "${params.inventory_json}"
+        TARGET_TYPE        = "${params.target_type}"
+        ANSIBLE_ROLES_PATH = "${WORKSPACE}/playbooks/day1/ansible/roles"
+    }
+
+    stages {
+
+        stage('parse_inventory_json') {
+            steps {
+                script {
+                    if (params.target_type != 'redfish') {
+                        error("target_type must be 'redfish'")
+                    }
+                    def inv = readJSON text: params.inventory_json
+                    if (!(inv instanceof List) || inv.isEmpty()) {
+                        error("inventory_json must be a non-empty JSON array")
+                    }
+                    if (inv.size() > 1) {
+                        echo "WARN: ${inv.size()} hosts; single-host model — only inv[0] is used"
+                    }
+                }
+            }
+        }
+
+        stage('stage01_checkParameters') {
+            steps {
+                runStage('stage01_checkParameters.yml')
+            }
+        }
+
+        stage('stage02_checkBMCip') {
+            steps {
+                runStage('stage02_checkBMCip.yml')
+            }
+        }
+
+        stage('stage03_checkHostIP') {
+            steps {
+                runStage('stage03_checkHostIP.yml')
+            }
+        }
+
+        stage('stage04_preCheckHostDirectory') {
+            steps {
+                runStage('stage04_preCheckHostDirectory.yml')
+            }
+        }
+
+        stage('stage05_createHostDirectory') {
+            steps {
+                runStage('stage05_createHostDirectory.yml')
+            }
+        }
+
+        stage('stage06_createBaseImgDirectory') {
+            steps {
+                runStage('stage06_createBaseImgDirectory.yml')
+            }
+        }
+
+        stage('stage07_generateKickStartFile') {
+            steps {
+                runStage('stage07_generateKickStartFile.yml')
+            }
+        }
+
+        stage('stage08_checkIsoFiledownload') {
+            steps {
+                runStage('stage08_checkIsoFiledownload.yml')
+            }
+        }
+
+        stage('stage09_copyBaseImageHostDirectory') {
+            steps {
+                runStage('stage09_copyBaseImageHostDirectory.yml')
+            }
+        }
+
+        stage('stage10_copyKickStartFileHostDirectory') {
+            steps {
+                runStage('stage10_copyKickStartFileHostDirectory.yml')
+            }
+        }
+
+        stage('stage11_createESXiCustomISO') {
+            steps {
+                runStage('stage11_createESXiCustomISO.yml')
+            }
+        }
+
+        stage('stage12_disconnectSessions') {
+            steps {
+                runStage('stage12_disconnectSessions.yml')
+            }
+        }
+
+        stage('stage13_mountMediaIso') {
+            steps {
+                runStage('stage13_mountMediaIso.yml')
+            }
+        }
+
+        stage('stage14_setOnetimeBoot') {
+            steps {
+                runStage('stage14_setOnetimeBoot.yml')
+            }
+        }
+
+        stage('stage15_serverReboot') {
+            steps {
+                runStage('stage15_serverReboot.yml')
+            }
+        }
+
+        stage('stage16_checkRebootStatus') {
+            steps {
+                runStage('stage16_checkRebootStatus.yml')
+            }
+        }
+
+        stage('stage17_unmountISOImage') {
+            steps {
+                runStage('stage17_unmountISOImage.yml')
+            }
+        }
+
+        stage('stage18_installFinish') {
+            steps {
+                runStage('stage18_installFinish.yml')
+            }
+        }
+
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+
+def runStage(String stageFile) {
+    ansiblePlaybook(
+        installation     : 'ansible',
+        playbook         : "${WORKSPACE}/playbooks/day1/ansible/playbooks/installESXi/${stageFile}",
+        vaultCredentialsId: 'ansible-vault-pass',
+        colorized        : true,
+        extras           : '-vvv'
+    )
+}

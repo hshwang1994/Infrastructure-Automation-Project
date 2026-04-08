@@ -1,0 +1,146 @@
+- name: Step2. Lenovo BIOS Settings Custom Mode
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios/Pending"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      Attributes:
+        "OperatingModes_ChooseOperatingMode": "{{ OperatingMode_STP2 }}" ## CustomMode / MaximumPerformance
+        "Processors_MONITORMWAIT": "{{ MONITORMWAIT }}"
+        "Processors_CStates": "{{ CStates }}"
+        "Processors_IntelVirtualizationTechnology": "{{ Intel_VT }}" ## Enabled / Disabled
+#           "Processors_SVMMode": "Enabled" ## AMD CPU Attribute
+#           "Processors_GlobalC_stateControl": "Disabled"
+#           "Processors_DFC_States": "Disabled"
+#           "Processors_MONITORMWAIT": "Enabled"
+#           "SecureBootConfiguration_SecureBootSetting": "Enabled"
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: yes
+    validate_certs: false
+  register: Bios_settings_result
+
+- name: Show bios settings result
+  ansible.builtin.debug:
+    msg:
+      Status: "{{ Bios_settings_result.json['@Message.ExtendedInfo'][0].Message }}"
+      OperatingModes: "{{ Bios_settings_result.json.Attributes.OperatingModes_ChooseOperatingMode }}"
+      Processors_MONITORMWAIT: "{{ Bios_settings_result.json.Attributes.Processors_MONITORMWAIT }}"
+      Processors_CStates: "{{ Bios_settings_result.json.Attributes.Processors_CStates }}"
+      Processors_IntelVirtualizationTechnology: "{{ Bios_settings_result.json.Attributes.Processors_IntelVirtualizationTechnology }}"      
+#         Processors_SVMMode: "{{ Bios_settings_result.json.Attributes.Processors_SVMMode }}" ## AMD CPU Attribute
+#         Processors_GlobalC_stateControl: "{{ Bios_settings_result.json.Attributes.Processors_GlobalC_stateControl }}"
+#         Processors_DFC_States: "{{ Bios_settings_result.json.Attributes.Processors_DFC_States }}"
+#         Processors_MONITORMWAIT: "{{ Bios_settings_result.json.Attributes.Processors_MONITORMWAIT }}"
+#         SecureBootConfiguration_SecureBootSetting: "{{ Bios_settings_result.json.Attributes.SecureBootConfiguration_SecureBootSetting }}"
+#     msg: "{{ Bios_settings_result }}"
+
+- name: Get pending BIOS settings after patch
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios/Pending"
+    method: GET
+    validate_certs: no
+    force_basic_auth: yes
+    user: "{{ username }}"
+    password: "{{ password }}"
+  register: pending_after_patch
+
+- name: Lenovo BIOS Settings Custom Mode > Reboot step
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      ResetType: ForceRestart
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: yes
+    validate_certs: false
+  register: reboot_result
+  when:
+    - (pending_after_patch.json.Attributes.OperatingModes_ChooseOperatingMode | default('') | lower) == (OperatingMode_STP2 | lower)
+    - (pending_after_patch.json.Attributes.Processors_MONITORMWAIT | default('') | lower) == (MONITORMWAIT | lower)
+    - (pending_after_patch.json.Attributes.Processors_CStates | default('') | lower) == (CStates | lower)
+    - (pending_after_patch.json.Attributes.Processors_IntelVirtualizationTechnology | default('') | lower) == (Intel_VT | lower)
+
+- name: Waiting for BIOS value to change on system
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios"
+    method: GET
+    validate_certs: no
+    force_basic_auth: yes
+    user: "{{ username }}"
+    password: "{{ password }}"
+  register: apply_bios_result
+  until:
+    - (apply_bios_result.json.Attributes.OperatingModes_ChooseOperatingMode | default('') | lower) == (OperatingMode_STP2 | lower)
+    - (apply_bios_result.json.Attributes.Processors_MONITORMWAIT | default('') | lower) == (MONITORMWAIT | lower)
+    - (apply_bios_result.json.Attributes.Processors_CStates | default('') | lower) == (CStates | lower)
+    - (apply_bios_result.json.Attributes.Processors_IntelVirtualizationTechnology | default('') | lower) == (Intel_VT | lower)
+  retries: 20
+  delay: 20
+
+- name: Waiting for initialize server status [6 minutes]
+  ansible.builtin.pause:
+    minutes: 6
+
+- name: Get current BIOS settings after reboot
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios"
+    method: GET
+    validate_certs: no
+    force_basic_auth: yes
+    user: "{{ username }}"
+    password: "{{ password }}"
+  register: current_bios_result
+
+- name: Compare requested values with applied BIOS values
+  set_fact:
+    compare_result:
+      OperatingMode:
+        requested: "{{ OperatingMode_STP2 }}"
+        applied: "{{ current_bios_result.json.Attributes.OperatingModes_ChooseOperatingMode | default('N/A') }}"
+        matched: "{{ (OperatingMode_STP2 | string | lower) == (current_bios_result.json.Attributes.OperatingModes_ChooseOperatingMode | default('') | string | lower) }}"
+      Processors_MONITORMWAIT:
+        requested: "{{ MONITORMWAIT }}"
+        applied: "{{ current_bios_result.json.Attributes.Processors_MONITORMWAIT | default('N/A') }}"
+        matched: "{{ (MONITORMWAIT | string | lower) == (current_bios_result.json.Attributes.Processors_MONITORMWAIT | default('') | string | lower) }}"
+      Processors_CStates:
+        requested: "{{ CStates }}"
+        applied: "{{ current_bios_result.json.Attributes.Processors_CStates | default('N/A') }}"
+        matched: "{{ (CStates | string | lower) == (current_bios_result.json.Attributes.Processors_CStates | default('') | string | lower) }}"
+      Processors_IntelVirtualizationTechnology:
+        requested: "{{ Intel_VT }}"
+        applied: "{{ current_bios_result.json.Attributes.Processors_IntelVirtualizationTechnology | default('N/A') }}"
+        matched: "{{ (Intel_VT | string | lower) == (current_bios_result.json.Attributes.Processors_IntelVirtualizationTechnology | default('') | string | lower) }}"
+
+- name: Complete Successfully BIOS Settings
+  ansible.builtin.debug:
+    msg:
+      OperatingMode: >-
+        requested={{ compare_result.OperatingMode.requested }},
+        applied={{ compare_result.OperatingMode.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result.OperatingMode.matched else 'Fail to changed bios value' }}
+      Processors_MONITORMWAIT: >-
+        requested={{ compare_result.Processors_MONITORMWAIT.requested }},
+        applied={{ compare_result.Processors_MONITORMWAIT.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result.Processors_MONITORMWAIT.matched else 'Fail to changed bios value' }}
+      Processors_CStates: >-
+        requested={{ compare_result.Processors_CStates.requested }},
+        applied={{ compare_result.Processors_CStates.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result.Processors_CStates.matched else 'Fail to changed bios value' }}
+      Processors_IntelVirtualizationTechnology: >-
+        requested={{ compare_result.Processors_IntelVirtualizationTechnology.requested }},
+        applied={{ compare_result.Processors_IntelVirtualizationTechnology.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result.Processors_IntelVirtualizationTechnology.matched else 'Fail to changed bios value' }}
+
+- name: Fail if any BIOS setting was not applied correctly
+  fail:
+    msg: "BIOS settings do not match requested value lists."
+  when: >
+    not compare_result.OperatingMode.matched
+    or not compare_result.Processors_MONITORMWAIT.matched
+    or not compare_result.Processors_CStates.matched
+    or not compare_result.Processors_IntelVirtualizationTechnology.matched

@@ -1,0 +1,139 @@
+---
+- name: Normalize parameter values
+  set_fact:
+    workload_profile:     "Virtualization-MaxPerformance"
+    acpi_slit:            "{{ 'Disabled'                    if acpi_slit           | lower == 'disabled'                    else 'Enabled' }}"
+    thermal_shutdown:     "{{ 'Disabled'                    if thermal_shutdown    | lower == 'disabled'                    else 'Enabled' }}"
+    fan_fail_policy:      "{{ 'Allow'                       if fan_fail_policy     | lower == 'allow'                       else 'Shutdown' }}"
+    daylight_saving_time: "{{ 'DaylightSavingsTimeDisabled' if daylight_saving_time| lower == 'daylightsavingstimedisabled' else 'DaylightSavingsTimeEnabled' }}"
+
+
+- name: HP BIOS Settings Maximum Performance
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios/settings"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      Attributes:
+        "WorkloadProfile": "{{ workload_profile }}"           # "Virtualization-PowerEfficient" || "Virtualization-MaxPerformance"(default)
+        "AcpiSlit": "{{ acpi_slit }}"                         # "Enabled" || "Disabled"(default)
+        "ThermalShutdown": "{{ thermal_shutdown }}"           # "Enabled" || "Disabled"(default)
+        "FanFailPolicy": "{{ fan_fail_policy }}"              # "Allow"(default) || "Shutdown"
+        "DaylightSavingsTime": "{{ daylight_saving_time }}"   # "DaylightSavingsTimeDisabled"(default) || "DaylightSavingsTimeEnabled"
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: true
+    validate_certs: false
+  register: Settings_Bios_MaxPerformance_Result  
+
+- name: Debug BIOS Maxium Performance Settings result
+  ansible.builtin.debug:
+    msg:
+      Status: "{{ Settings_Bios_MaxPerformance_Result.status }}"
+      MessageId: "{{ Settings_Bios_MaxPerformance_Result.json.error['@Message.ExtendedInfo'][0].MessageId | default('N/A') }}"
+      Result: >-
+        {{
+          'Success - Reboot required to apply' if
+          'SystemResetRequired' in (Settings_Bios_MaxPerformance_Result.json.error['@Message.ExtendedInfo'][0].MessageId | default(''))
+          else 'Applied without reboot' if Settings_Bios_MaxPerformance_Result.status in [200, 202, 204]
+          else 'Failed'
+        }}
+
+- name: HP BIOS Settings Virtualization-MaxPerformance > Reboot step
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      ResetType: GracefulRestart
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: true
+    validate_certs: false
+  register: Reboot_Bios_Maxperformance_Result
+  when: >-
+    'SystemResetRequired' in
+    (Settings_Bios_MaxPerformance_Result.json.error['@Message.ExtendedInfo'][0].MessageId | default(''))
+
+- name: Waiting for HP BIOS value to change on system
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1/Bios"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 202, 204]
+  register: Apply_Bios_MaxPerformance_Result
+  until: >-
+    Apply_Bios_MaxPerformance_Result.status in [200, 202, 204] and
+    Apply_Bios_MaxPerformance_Result.json.Attributes.WorkloadProfile is defined and
+    Apply_Bios_MaxPerformance_Result.json.Attributes.WorkloadProfile == 'Virtualization-MaxPerformance'
+  retries: 200
+  delay: 20
+  failed_when: false
+  when: Reboot_Bios_Maxperformance_Result is not skipped
+
+- name: Waiting for initialize Server Status [6 Min]
+  ansible.builtin.pause:
+    minutes: 6
+
+- name: Compare requested values with applied BIOS values
+  set_fact:
+    compare_result_maxperformance:
+      WorkloadProfile:
+        requested: "{{ workload_profile }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.WorkloadProfile | default('N/A') }}"
+        matched: "{{ (workload_profile | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.WorkloadProfile | default('') | string | lower) }}"
+      AcpiSlit:
+        requested: "{{ acpi_slit }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.AcpiSlit | default('N/A') }}"
+        matched: "{{ (acpi_slit | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.AcpiSlit | default('') | string | lower) }}"
+      ThermalShutdown:
+        requested: "{{ thermal_shutdown }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.ThermalShutdown | default('N/A') }}"
+        matched: "{{ (thermal_shutdown | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.ThermalShutdown | default('') | string | lower) }}"
+      FanFailPolicy:
+        requested: "{{ fan_fail_policy }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.FanFailPolicy | default('N/A') }}"
+        matched: "{{ (fan_fail_policy | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.FanFailPolicy | default('') | string | lower) }}"
+      DaylightSavingsTime:
+        requested: "{{ daylight_saving_time }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.DaylightSavingsTime | default('N/A') }}"
+        matched: "{{ (daylight_saving_time | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.DaylightSavingsTime | default('') | string | lower) }}"
+
+- name: Compare BIOS Setting Success
+  ansible.builtin.debug:
+    msg:
+      WorkloadProfile: >-
+        requested={{ compare_result_maxperformance.WorkloadProfile.requested }},
+        applied={{ compare_result_maxperformance.WorkloadProfile.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.WorkloadProfile.matched else 'Fail to changed bios value' }}
+      AcpiSlit: >-
+        requested={{ compare_result_maxperformance.AcpiSlit.requested }},
+        applied={{ compare_result_maxperformance.AcpiSlit.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.AcpiSlit.matched else 'Fail to changed bios value' }}
+      ThermalShutdown: >-
+        requested={{ compare_result_maxperformance.ThermalShutdown.requested }},
+        applied={{ compare_result_maxperformance.ThermalShutdown.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.ThermalShutdown.matched else 'Fail to changed bios value' }}
+      FanFailPolicy: >-
+        requested={{ compare_result_maxperformance.FanFailPolicy.requested }},
+        applied={{ compare_result_maxperformance.FanFailPolicy.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.FanFailPolicy.matched else 'Fail to changed bios value' }}
+      DaylightSavingsTime: >-
+        requested={{ compare_result_maxperformance.DaylightSavingsTime.requested }},
+        applied={{ compare_result_maxperformance.DaylightSavingsTime.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.DaylightSavingsTime.matched else 'Fail to changed bios value' }}
+
+- name: Fail if any BIOS setting was not applied correctly
+  fail:
+    msg: "BIOS settings do not match requested value lists."
+  when: >-
+    not compare_result_maxperformance.WorkloadProfile.matched or
+    not compare_result_maxperformance.AcpiSlit.matched or
+    not compare_result_maxperformance.ThermalShutdown.matched or
+    not compare_result_maxperformance.FanFailPolicy.matched or
+    not compare_result_maxperformance.DaylightSavingsTime.matched

@@ -1,0 +1,4 @@
+- name: Generate RHEL KS.CFG File
+  template:
+    src: rhel10-ks.cfg.j2
+    dest: "/ansible-semaphore/redhat/hosts/{{ hostname }}/ks.cfg"

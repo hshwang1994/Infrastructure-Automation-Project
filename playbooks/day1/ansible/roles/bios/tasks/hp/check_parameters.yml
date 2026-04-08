@@ -1,0 +1,42 @@
+---
+- name: Check parameters value
+  set_fact:
+    parameters:
+      bmc_ip: "{{ bmc_ip }}"
+      username: "{{ username }}"
+      vendor: "{{ vendor }}"
+      WorkloadProfile: "{{ workload_profile }}"
+      AcpiSlit: "{{ acpi_slit }}"
+      ThermalShutdown: "{{ thermal_shutdown }}"
+      FanFailPolicy: "{{ fan_fail_policy }}"
+      DaylightSavingsTime: "{{ daylight_saving_time }}"
+
+- name: Debug Parameter Value
+  debug:
+    msg: "{{ parameters }}"
+
+- name: Validate workload_profile Input Value 
+  fail:
+    msg: "Invalid workload_profile: '{{ workload_profile }}'. Valid values: Virtualization-MaxPerformance"
+  when: workload_profile | lower not in ['virtualization-maxperformance']
+
+- name: Validate acpi_slit Input Value
+  fail:
+    msg: "Invalid acpi_slit: '{{ acpi_slit }}'. Valid values: Enabled, Disabled"
+  when: acpi_slit | lower not in ['enabled', 'disabled']
+
+- name: Validate thermal_shutdown Input Value
+  fail:
+    msg: "Invalid thermal_shutdown: '{{ thermal_shutdown }}'. Valid values: Enabled, Disabled"
+  when: thermal_shutdown | lower not in ['enabled', 'disabled']
+
+- name: Validate fan_fail_policy Input Value
+  fail:
+    msg: "Invalid fan_fail_policy: '{{ fan_fail_policy }}'. Valid values: Allow, Shutdown"
+  when: fan_fail_policy | lower not in ['allow', 'shutdown']
+
+- name: Validate daylight_saving_time Input Value
+  fail:
+    msg: "Invalid daylight_saving_time: '{{ daylight_saving_time }}'. Valid values: DaylightSavingsTimeDisabled, DaylightSavingsTimeEnabled"
+  when: daylight_saving_time | lower not in ['daylightsavingstimedisabled', 'daylightsavingstimeenabled']
+

@@ -1,0 +1,40 @@
+- name: Set common variables
+  set_fact:
+    version: "{{ esxi_version | default(rhel_version) | default(win_version) }}"
+    os_type: "{{ 'esxi' if esxi_version is defined else ('redhat' if rhel_version is defined else 'windows') }}"
+
+
+- name: Eject existing Dell Virtual media
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body: {}
+    status_code: [200, 202, 204]
+  ignore_errors: yes
+
+- name: Mount RHEL Dell Virtual media
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.InsertMedia"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true   
+    validate_certs: false    
+    body_format: json
+    body: 
+      Image: "http://10.50.21.40/{{ os_type }}/hosts/{{ hostname }}/{{ version }}-custom-{{ hostname }}.iso"
+      Inserted: true
+      writeProtected: true
+    status_code: [200, 202, 204]
+  register: result_mount_iso
+
+
+- name: Debug mount RHEL
+  ansible.builtin.debug:
+    msg: "{{ result_mount_iso }}"
+

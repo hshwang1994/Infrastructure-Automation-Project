@@ -1,0 +1,16 @@
+- name: Unmount Dell Virtual media before mount
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Managers/iDRAC.Embedded.1/VirtualMedia/CD/Actions/VirtualMedia.EjectMedia"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body: {}
+    status_code: [200, 202, 204, 400]
+  register: result_unmount_iso
+
+- name: Debug Unmount All
+  ansible.builtin.debug:
+    msg: "{{ result_unmount_iso }}"

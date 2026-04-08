@@ -1,0 +1,22 @@
+- name: DELL set one-time boot to Viretual Media (CD)
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/System.Embedded.1"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    headers:
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      Boot:
+        BootSourceOverrideEnabled: "Once"
+        BootSourceOverrideTarget: "Cd"
+      status_code: [200, 202, 204]
+  register: result_onetime_boot
+
+
+- name: Debug Onetime Boot
+  ansible.builtin.debug:
+    msg: "{{ result_onetime_boot }}"

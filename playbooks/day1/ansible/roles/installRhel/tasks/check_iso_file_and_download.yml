@@ -1,0 +1,25 @@
+  - name: Check ISO file exists
+    stat:
+      path: "/ansible-semaphore/base-img/ISO/rhel-{{ rhel_version }}-x86_64-dvd.iso"
+    register: iso_stat
+
+  - name: Download RHEL ISO from remote server
+    shell: >
+     wget -c --tries=5 --timeout=30 --waitretry=5 --progress=bar:force -O /ansible-semaphore/base-img/ISO/rhel-{{ rhel_version }}-x86_64-dvd.iso http://10.50.21.52/base-img/rhel-{{ rhel_version }}-x86_64-dvd.iso
+    when: not iso_stat.stat.exists
+    delegate_to: localhost
+  - name: Check extract marker file
+    stat:
+      path: "/ansible-semaphore/base-img/ISO/REDHAT/{{ rhel_version }}/.extract_done"
+    register: extract_marker
+
+  - name: Extract ISO contents
+    shell: |
+      xorriso -osirrox on -indev /ansible-semaphore/base-img/ISO/rhel-{{ rhel_version }}-x86_64-dvd.iso -extract / /ansible-semaphore/base-img/ISO/REDHAT/{{ rhel_version }}/
+    when: not extract_marker.stat.exists
+  
+  - name: Create extract marker file
+    file:
+      path: "/ansible-semaphore/base-img/ISO/REDHAT/{{ rhel_version }}/.extract_done"
+      state: touch
+    when: not extract_marker.stat.exists

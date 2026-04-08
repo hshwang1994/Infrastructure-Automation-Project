@@ -1,0 +1,254 @@
+#version=RHEL10
+graphical
+firstboot --disable
+
+## Install sources Repo definition ##
+cdrom
+repo --name="BaseOS" --baseurl=file:///run/install/repo/BaseOS
+repo --name="AppStream" --baseurl=file:///run/install/repo/AppStream
+
+## Install Package definition ##
+%packages
+@^minimal-environment
+sudo
+kexec-tools
+unzip
+%end
+
+## Language / Time definition ##
+keyboard --xlayouts='us'
+lang en_US.UTF-8
+timezone Asia/Seoul --utc
+
+## Install disk location & Clear data on disk definition ##
+ignoredisk --only-use=sda
+zerombr
+clearpart --all --initlabel --drives=sda
+
+## Set /boot/efi , /boot partition capacity definition ##
+part /boot/efi --fstype=vfat --size=600 --ondisk=sda --fsoptions="umask=0077,shortname=winnt"
+part /boot --fstype=xfs --size=1024 --ondisk=sda
+part pv.01 --size=1 --grow --ondisk=sda
+volgroup vgroot pv.01
+
+## Set lv_root , /lv_swap partition capacity definition ##
+logvol / --vg=vgroot --name=lv_root --fstype=xfs --size=20480 --grow
+logvol swap --vg=vgroot --name=lv_swap --fstype=swap --recommended
+
+## Set bootloader=sda definition ##
+bootloader --boot-drive=sda
+
+## Set root password  definition ##
+rootpw --iscrypted $6$ouiwFlNAoqz/vwEs$SNWuMRZtNRpfzSNSWPodBIhPg81/rIz.BrqVuqpcekFcyFA2MTjpitGEJfIi9ji3xERhS/WBwhquIVjYgbLP..
+
+## Set kdump definition ##
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+%end
+
+## Set add users definition ##
+user --name=vmadmin --password=$6$ouiwFlNAoqz/vwEs$SNWuMRZtNRpfzSNSWPodBIhPg81/rIz.BrqVuqpcekFcyFA2MTjpitGEJfIi9ji3xERhS/WBwhquIVjYgbLP.. --iscrypted --groups=wheel
+
+##### -------------------------
+## Pre NIC-MGMT Gateway ICMP Test##
+##### -------------------------
+
+%pre
+#!/bin/bash
+
+## Set ICMP Test variable ##
+VLAN_ID="{{ vlan_id }}"
+TEST_IP="{{ service_ip }}"
+GATEWAY="{{ gateway }}"
+{% raw %}
+TEMP_PREFIX=24
+
+#MAX_NICS=10
+
+## Find Link up NIC list (lo / bond / virbr Exception ##
+LINK_UP_NICS=$(ip -o link show | awk -F': ' '$2 !~ /lo|bond|virbr/ && $0 ~ /state UP/ {print $2}')
+SELECTED_NICS=()
+
+## Searching to link up nic ##
+for NIC in $LINK_UP_NICS; do
+
+## NIC + VLAN Tag (Ex: ens192.21) ##
+TEMP_VLAN_NAME="$NIC.$VLAN_ID"
+
+## Create Temp VLAN Interface ##
+ip link add link "$NIC" name "$TEMP_VLAN_NAME" type vlan id "$VLAN_ID" 2>/dev/null || continue
+ip addr add "$TEST_IP/$TEMP_PREFIX" dev "$TEMP_VLAN_NAME" 2>/dev/null || true
+ip link set "$TEMP_VLAN_NAME" up 2>/dev/null || true
+
+## Check to MGMT Gateway ICMP (If ping is successful, add to the nic list ##
+if ping -c 3 -W 1 "$GATEWAY" > /dev/null 2>&1
+then
+SELECTED_NICS+=("$NIC")
+fi
+
+## Delete to Temp VLAN Interface ##
+ip link set "$TEMP_VLAN_NAME" down 2>/dev/null || true
+ip link del "$TEMP_VLAN_NAME" 2>/dev/null || true
+
+done
+
+## If have at least one nic , Add it to nic_info.txt ##
+if [ ${#SELECTED_NICS[@]} -gt 0 ]
+then
+echo "SELECTED_NICS='${SELECTED_NICS[@]}'" > /tmp/nic_info.txt
+fi
+{% endraw %}
+%end
+
+# -------------------------
+# copy to temp files > /mnt/sysimage/root/nic_info.txt
+# -------------------------
+
+%post --nochroot
+{% raw %}
+cp -f /tmp/nic_info.txt /mnt/sysimage/root/nic_info.txt 2>/dev/null || true
+{% endraw %}
+%end
+
+# -------------------------
+# system configuration
+# -------------------------
+
+%post --log=/root/ks-post.log
+#!/bin/bash
+
+## Stops to kickstart when a problem occurs (set -e) ##
+set -e
+
+## MGMT Network information definition ##
+STATIC_IP="{{ service_ip }}/24"
+GATEWAY="{{ gateway }}"
+VLAN_ID="{{ vlan_id }}"
+{% raw %}
+BOND_MODE="active-backup"
+DNS1="10.50.21.250"
+
+## ICMP Possible NIC List ##
+NIC_INFO_FILE="/root/nic_info.txt"
+
+## Perpetual NetworkManager Profiles ##
+NM_DIR="/etc/NetworkManager/system-connections"
+
+if [ -f "$NIC_INFO_FILE" ]
+then
+    source "$NIC_INFO_FILE"
+else
+    echo "NIC detection failed"
+    exit 1
+fi
+
+if [ -z "${SELECTED_NICS:-}" ]
+then
+    echo "No selected NICs found"
+    exit 1
+fi
+
+mkdir -p "$NM_DIR"
+echo "Creating bond0 keyfile"
+
+## Create Bond0 keyfile step ##
+nmcli --offline connection add \
+type bond \
+con-name bond0 \
+ifname bond0 \
+bond.options "mode=$BOND_MODE,miimon=100" \
+ipv4.method disabled \
+ipv6.method ignore \
+connection.autoconnect yes \
+connection.autoconnect-ports 1 \
+> "$NM_DIR/bond0.nmconnection"
+
+## Create Bond slave nic keyfile step ##
+for NIC in $SELECTED_NICS
+do
+
+nmcli --offline connection add \
+type ethernet \
+con-name bond-slave-$NIC \
+ifname "$NIC" \
+master bond0 \
+slave-type bond \
+ipv4.method disabled \
+ipv6.method ignore \
+connection.autoconnect yes \
+> "$NM_DIR/bond-slave-$NIC.nmconnection"
+
+done
+
+## Create VLAN keyfile step ##
+nmcli --offline connection add \
+type vlan \
+con-name vlan-bond0.$VLAN_ID \
+ifname bond0.$VLAN_ID \
+dev bond0 \
+id $VLAN_ID \
+ipv4.method manual \
+ipv4.addresses "$STATIC_IP" \
+ipv4.gateway "$GATEWAY" \
+ipv4.dns "$DNS1" \
+ipv6.method ignore \
+connection.autoconnect yes \
+> "$NM_DIR/vlan-bond0.$VLAN_ID.nmconnection"
+
+## NetworkManager Profile Permission ##
+chown root:root "$NM_DIR"/*.nmconnection
+chmod 600 "$NM_DIR"/*.nmconnection
+
+## SELinux NetworkManager Profile ##
+restorecon -Rv "$NM_DIR" || true
+
+## NetworkManager Service enable ##
+systemctl enable NetworkManager
+
+echo "Verify generated profiles"
+
+ls -l "$NM_DIR" >> /root/ks-post.log
+
+for F in "$NM_DIR"/*.nmconnection
+do
+    echo "===== $F =====" >> /root/ks-post.log
+    cat "$F" >> /root/ks-post.log
+done
+
+sync
+sleep 2
+
+# -------------------------
+# account setup
+# -------------------------
+
+#echo "vmadmin ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vmadmin
+#chmod 440 /etc/sudoers.d/vmadmin
+#chage -d 0 vmadmin
+
+# -------------------------
+# Disable Redhat Subscription Manager
+# -------------------------
+
+systemctl disable --now rhsmcertd || true
+subscription-manager config --rhsm.auto_enable_yum_plugins=0 || true
+
+# -------------------------
+# Setting hostname
+# -------------------------
+{% endraw %}
+
+# -------------------------
+# Hostname Setting
+# -------------------------
+
+hostnamectl set-hostname "{{ hostname }}"
+echo "{{ hostname }}" > /etc/hostname
+grep -q "{{ hostname }}" /etc/hosts || echo "127.0.0.1 {{ hostname }}" >> /etc/hosts
+
+# -------------------------
+# NTP Server Settings (Chrony)
+# -------------------------
+sed -i '/^server /d;/^pool /d' /etc/chrony.conf && echo 'server {{ ntp_server }} iburst' >> /etc/chrony.conf && systemctl restart chronyd
+
+%end
+reboot

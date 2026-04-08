@@ -1,0 +1,5 @@
+---
+- name: generate KS.CFG file
+  ansible.builtin.template:
+    src: esxi-ks.cfg.j2.cfg
+    dest: "/ansible-semaphore/esxi/hosts/{{ hostname }}/KS.CFG"

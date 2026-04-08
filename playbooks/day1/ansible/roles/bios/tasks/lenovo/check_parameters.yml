@@ -1,0 +1,15 @@
+- name: Check parameters value
+  set_fact:
+    parameters:
+      bmc_ip: "{{ bmc_ip }}"
+      username: "{{ username }}"
+      vendor: "{{ vendor }}"
+      OperatingMode_STP1: "{{ OperatingMode_STP1 }}"
+      OperatingMode_STP2: "{{ OperatingMode_STP2 }}"
+      MONITORMWAIT: "{{ MONITORMWAIT }}"
+      CStates: "{{ CStates }}"
+      Intel_VT: "{{ Intel_VT }}"
+    
+- name: Debug hostname
+  debug:
+    msg: "{{ parameters }}"

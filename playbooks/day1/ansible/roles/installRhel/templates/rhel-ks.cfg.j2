@@ -1,0 +1,346 @@
+#version=RHEL8
+graphical
+firstboot --disable
+
+# ==== 설치 소스 (DVD/가상미디어) ====
+cdrom
+repo --name="BaseOS"    --baseurl=file:///run/install/repo/BaseOS
+repo --name="AppStream" --baseurl=file:///run/install/repo/AppStream
+
+# ==== 패키지 ====
+%packages
+@^minimal-environment
+#^graphical-server-environment
+#net-tools
+sudo
+kexec-tools
+unzip
+
+%end
+
+# ==== 로캘/키보드/타임존 ====
+keyboard --xlayouts='kr'
+lang ko_KR.UTF-8
+timezone Asia/Seoul --utc
+
+# ==== 디스크 파티셔닝 (UEFI + LVM, 남은 용량 전부 /) ====
+ignoredisk --only-use=sda
+zerombr
+clearpart --all --initlabel --drives=sda
+part /boot/efi --fstype=vfat --size=600  --ondisk=sda --fsoptions="umask=0077,shortname=winnt"
+part /boot       --fstype=xfs  --size=1024 --ondisk=sda
+part pv.01 --size=1 --grow --ondisk=sda
+volgroup vgroot pv.01
+logvol /    --vg=vgroot --name=lv_root --fstype=xfs  --size=10240 --grow
+logvol swap --vg=vgroot --name=lv_swap --fstype=swap --size=8192
+bootloader --boot-drive=sda --location=mbr
+
+# ... (루트 비밀번호, Kdump, 사용자 계정 설정 로직 유지) ...
+rootpw --iscrypted $6$7vvU9tPoMln7mugu$rGS0Uja3XBxRgSTNN8Z/WioS4W7Z0xltuvcBbWpoJnRy25mgM9dQIsgnvwVyFrrq/2Y.XydND6UFjLZAu9Qkx/
+%addon com_redhat_kdump --enable --reserve-mb='auto'
+%end
+user --name=vmadmin --password=vmware1! --plaintext --groups=wheel
+
+
+# ==== NIC 선별 및 통신 테스트 (설치 전 필수) ====
+%pre
+#!/bin/bash
+# 1. Ansible/Jinja2 변수를 쉘 변수에 할당 (이 라인은 RAW 블록 밖에 있어야 합니다!)
+VLAN_ID="{{ vlan_id }}"
+TEST_IP="{{ service_ip }}"
+GATEWAY="{{ gateway }}"
+
+# 2. 쉘 스크립트 본문 (RAW 블록으로 감싸서 쉘 주석 오류 방지)
+{% raw %}
+TEMP_PREFIX=24
+MAX_NICS=10
+
+echo "--- Kickstart %pre Script Started ---" > /tmp/pre_script.log
+echo "Target VLAN: $VLAN_ID, Gateway: $GATEWAY" >> /tmp/pre_script.log
+
+# link up 상태의 물리 NIC 목록을 찾습니다. (lo/bond/virbr 제외, state UP 확인)
+LINK_UP_NICS=$(ip -o link show | awk -F': ' '$2 !~ /lo|bond|virbr/ && $0 ~ /state UP/ {print $2}')
+SELECTED_NICS=()
+
+for NIC in $LINK_UP_NICS; do
+    if [ ${#SELECTED_NICS[@]} -ge $MAX_NICS ]; then
+        break
+    fi
+    # 2-1. 임시 VLAN 인터페이스 이름 설정
+    TEMP_VLAN_NAME="$NIC.$VLAN_ID"
+    # 2-2. 임시 VLAN 인터페이스 추가 및 IP 할당
+    ip link add link $NIC name $TEMP_VLAN_NAME type vlan id $VLAN_ID
+    ip addr add $TEST_IP/$TEMP_PREFIX dev $TEMP_VLAN_NAME
+    ip link set $TEMP_VLAN_NAME up
+    # 2-3. 게이트웨이(10.50.21.1)로 ping 테스트
+    if ping -c 3 -W 1 $GATEWAY > /dev/null 2>&1; then
+        SELECTED_NICS+=($NIC)
+        echo "SUCCESS: NIC $NIC selected." >> /tmp/pre_script.log
+    else
+        echo "FAIL: NIC $NIC failed ping test." >> /tmp/pre_script.log
+    fi
+    # 2-4. 임시 설정 제거
+    ip link set $TEMP_VLAN_NAME down
+    ip link del $TEMP_VLAN_NAME
+done
+
+# 3. 선별된 NIC 정보를 /tmp/nic_info.txt에 저장 (우선 /tmp에만 저장)
+if [ ${#SELECTED_NICS[@]} -gt 0 ]; then
+    echo "SELECTED_NICS='${SELECTED_NICS[@]}'" > /tmp/nic_info.txt
+fi
+
+echo "--- Kickstart %pre Script Finished ---" >> /tmp/pre_script.log
+
+%end
+{% endraw %}
+
+# ==== 후처리 1단계: 파일 전송 (마운트 보장) ====
+# NMCLI 구성에 필요한 파일을 Anaconda 환경(/tmp)에서 설치된 시스템(/mnt/sysimage/root)으로 안전하게 복사합니다.
+%post --nochroot
+echo "--- POST --nochroot: Starting file transfer ---" >> /mnt/sysimage/root/ks-post-nochroot.log
+
+# /mnt/sysimage가 존재할 때 복사
+if [ -d /mnt/sysimage ]; then
+    if [ -f /tmp/nic_info.txt ]; then
+        # Anaconda 환경의 /tmp 에서 /mnt/sysimage/root 로 복사 (이후 %post에서 /root/nic_info.txt로 참조)
+        cp -f /tmp/nic_info.txt /mnt/sysimage/root/nic_info.txt
+    fi
+    if [ -f /tmp/pre_script.log ]; then
+        cp -f /tmp/pre_script.log /mnt/sysimage/root/pre_script.log
+    fi
+
+    # ✅ [CHANGED] Vendor/Lenovo payload 복사 (nochroot에서만 확실함)
+    echo "--- Vendor copy start ---" >> /mnt/sysimage/root/ks-post-nochroot.log
+    mkdir -p /mnt/sysimage/opt/vendor/lenovo
+
+    if [ -d /run/install/repo/vendor/lenovo ]; then
+        cp -a /run/install/repo/vendor/lenovo/. /mnt/sysimage/opt/vendor/lenovo/
+        echo "Copied: /run/install/repo/vendor/lenovo -> /mnt/sysimage/opt/vendor/lenovo" >> /mnt/sysimage/root/ks-post-nochroot.log
+    else
+        echo "WARN: /run/install/repo/vendor/lenovo not found. Skip vendor copy." >> /mnt/sysimage/root/ks-post-nochroot.log
+        ls -al /run/install/repo >> /mnt/sysimage/root/ks-post-nochroot.log 2>&1 || true
+    fi
+    echo "--- Vendor copy end ---" >> /mnt/sysimage/root/ks-post-nochroot.log
+fi
+echo "--- POST --nochroot: File transfer finished ---" >> /mnt/sysimage/root/ks-post-nochroot.log
+%end
+
+
+# ==== 후처리 2단계: 시스템 설정 및 NMCLI 구성 (chroot 환경) ====
+%post --log=/root/ks-post.log
+#set -euxo pipefail # 안정성을 위해 주석 처리 유지
+
+echo "--- POST --chroot: Starting configuration ---" >> /root/ks-post.log
+
+# ----------------------------------------------------
+# [Lenovo] ISO/Repo의 vendor/lenovo 폴더를 /opt/vendor/lenovo 로 복사 확인
+# ----------------------------------------------------
+echo "--- Check Lenovo payload under /opt/vendor/lenovo ---" >> /root/ks-post.log
+if [ -d /opt/vendor/lenovo ]; then
+    echo "OK: /opt/vendor/lenovo exists" >> /root/ks-post.log
+else
+    echo "ERROR: /opt/vendor/lenovo missing (vendor copy failed in --nochroot)" >> /root/ks-post.log
+fi
+
+# 권한 정리 (onecli 실행 파일만 실행권한 보장)
+find /opt/vendor/lenovo -type d -exec chmod 755 {} \; 2>/dev/null || true
+find /opt/vendor/lenovo -type f -exec chmod 644 {} \; 2>/dev/null || true
+find /opt/vendor/lenovo/onecli -type f -name "OneCli" -exec chmod 755 {} \; 2>/dev/null || true
+find /opt/vendor/lenovo/onecli -type f -name "OneCli.sh" -exec chmod 755 {} \; 2>/dev/null || true
+
+# ----------------------------------------------------
+# [Lenovo] OneCLI post script 실행
+# ----------------------------------------------------
+echo "--- Run /opt/vendor/lenovo/script/lenovo_onecli.sh ---" >> /root/ks-post.log
+
+SCRIPT="/opt/vendor/lenovo/script/lenovo_onecli.sh"
+LOGDIR="/opt/vendor/lenovo/logs"
+LOGFILE="$LOGDIR/lenovo_onecli.log"
+
+mkdir -p "$LOGDIR"
+
+if [ -f "$SCRIPT" ]; then
+    chmod 755 "$SCRIPT" || true
+    echo "Running: $SCRIPT" >> /root/ks-post.log
+
+    # 실행 로그를 파일로 남기고, 콘솔에도 기록
+    /bin/bash "$SCRIPT" > "$LOGFILE" 2>&1
+    RC=$?
+
+    echo "OneCLI script exit code=$RC" >> /root/ks-post.log
+    echo "OneCLI log: $LOGFILE" >> /root/ks-post.log
+
+    if [ $RC -ne 0 ]; then
+        echo "ERROR: OneCLI script failed (rc=$RC). Check $LOGFILE" >> /root/ks-post.log
+        # 필요하면 설치 실패로 처리하려면 아래 주석 해제
+        # exit $RC
+    else
+        echo "INFO: OneCLI script completed successfully." >> /root/ks-post.log
+    fi
+else
+    echo "WARN: $SCRIPT not found. Skip OneCLI execution." >> /root/ks-post.log
+    ls -al /opt/vendor/lenovo >> /root/ks-post.log 2>&1 || true
+fi
+
+### 계정 처리 ###
+echo "vmadmin ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers
+chage -d 0 vmadmin
+
+### RHSM 관련 알림/데몬 비활성###
+systemctl disable --now rhsmcertd || true
+subscription-manager config --rhsm.auto_enable_yum_plugins=0 || true
+sed -i 's/^enabled *= *.*/enabled=0/' /etc/dnf/plugins/subscription-manager.conf || true
+
+# [🌟 추가 조치 1] cloud-init 서비스 비활성화 및 마스크 (VM 환경 호스트 이름 유실 방지)
+#if systemctl list-unit-files | grep -q cloud-init; then
+#    echo "Disabling and masking cloud-init services." >> /root/ks-post.log
+#    systemctl disable --now cloud-init cloud-config cloud-final cloud-init-local || true
+#    systemctl mask cloud-init.service cloud-config.service cloud-final.service cloud-init-local.service || true
+#fi
+
+# [🌟 추가 조치 2] NetworkManager가 hostname을 변경하지 않도록 설정
+NM_CONF_DIR="/etc/NetworkManager/conf.d"
+mkdir -p $NM_CONF_DIR
+echo -e "[main]\nhostname-mode=none" > $NM_CONF_DIR/no-hostname-override.conf
+
+### hostname 지정 및 유실 방지 조치 ####
+hostnamectl set-hostname {{ hostname }}
+# [FIX] hostname 영구 고정 (파일 기반)
+echo "{{ hostname }}" > /etc/hostname
+echo "127.0.0.1 {{ hostname }}" >> /etc/hosts
+
+# 설치 완료 시그널
+{
+  echo "status: install_complete"
+  echo "timestamp: $(date -Is)"
+  echo "hostname: $(hostname -f 2>/dev/null || hostname)"
+  echo "kernel: $(uname -r)"
+  echo "systemd_state: $(systemctl is-system-running || echo unknown)"
+  echo "interfaces_v4:"
+  ip -o -4 addr show | awk '{print "  - if: " $2 ", addr: " $4}'
+  echo "routes:"
+  ip route show | sed 's/^/  - /'
+  echo "dns_resolver:"
+  awk '{gsub(/\r/,""); print "  " $0}' /etc/resolv.conf 2>/dev/null || true
+} > /root/install.status
+
+chmod 644 /root/install.status
+
+
+# ----------------------------------------------------
+# 1. ifcfg 네트워크 구성 (안정성 확보)
+# ----------------------------------------------------
+
+# 1. Ansible/Jinja2 변수를 쉘 변수에 할당 (RAW 블록 밖에 있어야 합니다!)
+STATIC_IP="{{ service_ip }}/24"
+GATEWAY="{{ gateway }}"
+VLAN_ID="{{ vlan_id }}"
+BOND_MODE="active-backup" # 'active-backup' 모드 유지
+STATIC_IP_ADDR="{{ service_ip }}" # IP 주소만 추출
+
+# 2. 쉘 스크립트 본문
+{% raw %}
+echo "--- Kickstart %post Script Started (IFCFG) ---" >> /root/post_script.log
+
+# 1. %pre 스크립트에서 저장한 NIC 정보를 가져오기
+NIC_INFO_FILE="/root/nic_info.txt"
+
+if [ -f "$NIC_INFO_FILE" ]; then
+    source "$NIC_INFO_FILE"
+else
+    echo "ERROR: NIC info file not found ($NIC_INFO_FILE). Aborting network configuration." >> /root/post_script.log
+    exit 1
+fi
+
+if [ -z "$SELECTED_NICS" ]; then
+    echo "ERROR: No NICs selected by the %pre script. Aborting network configuration." >> /root/post_script.log
+    exit 1
+fi
+
+
+# -----------------------------------------------------------------
+# 2. ifcfg 파일 직접 생성 및 저장
+# -----------------------------------------------------------------
+
+IFCFG_DIR="/etc/sysconfig/network-scripts"
+mkdir -p $IFCFG_DIR
+
+# 2-1. 본드 마스터 설정 파일 생성: ifcfg-bond0
+echo "Creating ifcfg-bond0..." >> /root/post_script.log
+cat << EOF > $IFCFG_DIR/ifcfg-bond0
+TYPE=Bond
+BONDING_MASTER=yes
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=no
+NAME=bond0
+DEVICE=bond0
+ONBOOT=yes
+# [🌟 안정성 추가] miimon=100ms 설정으로 링크 감지 주기 명시
+BONDING_OPTS="mode=$BOND_MODE miimon=100"
+EOF
+
+# 2-2. VLAN 인터페이스 설정 파일 생성: ifcfg-vlan-bond0.$VLAN_ID
+VLAN_IFCFG="ifcfg-vlan-bond0.$VLAN_ID"
+echo "Creating $VLAN_IFCFG..." >> /root/post_script.log
+cat << EOF > $IFCFG_DIR/$VLAN_IFCFG
+VLAN=yes
+TYPE=Vlan
+PHYSDEV=bond0
+VLAN_ID=$VLAN_ID
+REORDER_HDR=yes
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=no
+NAME=vlan-bond0.$VLAN_ID
+ONBOOT=yes
+IPADDR=$STATIC_IP_ADDR
+PREFIX=24
+GATEWAY=$GATEWAY
+DNS1=8.8.8.8
+EOF
+
+# 2-3. 물리 NIC 슬레이브 설정 파일 생성
+NIC_COUNT=0
+for NIC in $SELECTED_NICS; do
+    echo "Creating ifcfg-$NIC-slave..." >> /root/post_script.log
+    cat << EOF > $IFCFG_DIR/ifcfg-$NIC-slave
+TYPE=Ethernet
+NAME=$NIC-slave
+DEVICE=$NIC
+ONBOOT=yes
+MASTER=bond0
+SLAVE=yes
+EOF
+    NIC_COUNT=$((NIC_COUNT+1))
+done
+
+
+# -----------------------------------------------------------------
+# 3. 정리 및 활성화
+# -----------------------------------------------------------------
+
+# 기존 NetworkManager 연결 프로필 삭제 (keyfile 충돌 방지)
+nmcli connection delete all 2>/dev/null || true
+
+# 파일 시스템 동기화 강제 (매우 중요: 파일 쓰기 보장)
+echo "Forcing filesystem sync." >> /root/post_script.log
+sync
+
+# NetworkManager 재시작 (새 ifcfg 파일을 클린하게 로드하도록 강제)
+echo "Restarting NetworkManager to load new ifcfg files." >> /root/post_script.log
+systemctl restart NetworkManager
+
+echo "Final Network Configuration Complete." >> /root/post_script.log
+
+%end
+{% endraw %}
+
+# ==== 완료 동작 ====
+reboot

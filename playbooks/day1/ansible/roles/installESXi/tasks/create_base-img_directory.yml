@@ -1,0 +1,6 @@
+---
+- name: Create base-img directory per host
+  ansible.builtin.file:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img"
+    state: directory
+    mode: '0755'

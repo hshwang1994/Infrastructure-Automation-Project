@@ -1,0 +1,6 @@
+- name: Wait for SSH
+  wait_for:
+    host: "{{ service_ip }}"
+    port: 22
+    timeout: 3600
+    state: started

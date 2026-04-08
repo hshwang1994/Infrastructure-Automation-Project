@@ -1,0 +1,12 @@
+---
+- name: Pre-Check hosts Directory
+  ansible.builtin.stat:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}"
+  register: result_preCheck_host_directory
+
+
+- name: Error Throw Task - Host Directory Already Exist
+  ansible.builtin.fail:
+    msg: "Hosts Directory already exists: /ansible-semaphore/esxi/hosts/{{ hostname }}"
+  when: result_preCheck_host_directory.stat.exists
+

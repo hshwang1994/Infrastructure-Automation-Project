@@ -1,0 +1,36 @@
+---
+- hosts: localhost
+  gather_facts: true
+  connection: local
+
+  vars_files:
+    - ../../group_vars/all.yml
+
+  vars:
+    inventory: "{{ lookup('env', 'INVENTORY_JSON') | from_json }}"
+    host:   "{{ inventory[0] }}"
+    hostname: "{{ host.hostname | default('') }}"
+    dns_name:      "{{ host.dns_name      | default('') }}"
+    service_ip:            "{{ host.service_ip            | default('') }}"
+    bmc_ip:   "{{ host.bmc_ip   | default('') }}"
+    gateway:       "{{ host.gateway       | default('') }}"
+    dns_server:    "{{ host.dns_server    | default('') }}"
+    ntp_server:    "{{ host.ntp_server    | default('') }}"
+    vlan_id:       "{{ host.vlan_id       | default('') }}"
+    rhel_version:  "{{ host.rhel_version  | default('') }}"
+    username:      "{{ host.username      | default('') }}"
+    vendor:        "{{ host.vendor        | default('') }}"
+    vendor_name:
+      lenovo:
+        role: bmc
+        task: lenovo/server_reboot.yml
+      
+      hp:
+        role: bmc
+        task: hp/server_reboot.yml
+
+  tasks:
+    - name: "Server Reboot Process"
+      include_role:
+        name: "{{ vendor_name[vendor].role }}"
+        tasks_from: "{{ vendor_name[vendor].task }}"

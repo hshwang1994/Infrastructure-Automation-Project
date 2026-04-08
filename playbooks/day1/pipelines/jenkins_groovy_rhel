@@ -1,0 +1,160 @@
+// inventory_json 입력 예시 (원본 Jenkinsfile 의 기본값을 그대로 옮겨둔 값입니다):
+// [
+//   { "hostname": "test0001", "dns_name": "hynix.com", "service_ip": "10.50.21.32", "bmc_ip": "10.50.11.232", "gateway": "10.50.21.1", "dns_server": "10.50.21.250", "ntp_server": "10.50.21.251", "vlan_id": "21", "rhel_version": "8.10", "username": "USERID", "vendor": "lenovo" }
+// ]
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc', defaultValue: 'ansible', trim: true)
+        choice(name: 'target_type', choices: ['redfish'])
+        text(name: 'inventory_json', defaultValue: '''[
+  { "hostname": "", "dns_name": "", "service_ip": "", "bmc_ip": "", "gateway": "", "dns_server": "", "ntp_server": "", "vlan_id": "", "rhel_version": "", "username": "", "vendor": "" }
+]''')
+    }
+
+    environment {
+        INVENTORY_JSON     = "${params.inventory_json}"
+        TARGET_TYPE        = "${params.target_type}"
+        ANSIBLE_ROLES_PATH = "${WORKSPACE}/playbooks/day1/ansible/roles"
+    }
+
+    stages {
+
+        stage('parse_inventory_json') {
+            steps {
+                script {
+                    if (params.target_type != 'redfish') {
+                        error("target_type must be 'redfish'")
+                    }
+                    def inv = readJSON text: params.inventory_json
+                    if (!(inv instanceof List) || inv.isEmpty()) {
+                        error("inventory_json must be a non-empty JSON array")
+                    }
+                    if (inv.size() > 1) {
+                        echo "WARN: ${inv.size()} hosts; single-host model — only inv[0] is used"
+                    }
+                }
+            }
+        }
+
+        stage('stage01_checkParameters') {
+            steps {
+                runStage('stage01_checkParameters.yml')
+            }
+        }
+
+        stage('stage02_checkBmcip') {
+            steps {
+                runStage('stage02_checkBmcip.yml')
+            }
+        }
+
+        stage('stage03_checkHostip') {
+            steps {
+                runStage('stage03_checkHostip.yml')
+            }
+        }
+
+        stage('stage04_preCheckHostDirectory') {
+            steps {
+                runStage('stage04_preCheckHostDirectory.yml')
+            }
+        }
+
+        stage('stage05_createHostDirectory') {
+            steps {
+                runStage('stage05_createHostDirectory.yml')
+            }
+        }
+
+        stage('stage06_createBaseImgDirectory') {
+            steps {
+                runStage('stage06_createBaseImgDirectory.yml')
+            }
+        }
+
+        stage('stage07_generateKickstartFile') {
+            steps {
+                runStage('stage07_generateKickstartFile.yml')
+            }
+        }
+
+        stage('stage08_checkIsoFiledownload') {
+            steps {
+                runStage('stage08_checkIsoFiledownload.yml')
+            }
+        }
+
+        stage('stage09_copyBaseImgHostDirectory') {
+            steps {
+                runStage('stage09_copyBaseImgHostDirectory.yml')
+            }
+        }
+
+        stage('stage10_copyKickstartFileHostDirectory') {
+            steps {
+                runStage('stage10_copyKickstartFileHostDirectory.yml')
+            }
+        }
+
+        stage('stage11_createRhelCustomIso') {
+            steps {
+                runStage('stage11_createRhelCustomIso.yml')
+            }
+        }
+
+        stage('stage12_mountMediaIso') {
+            steps {
+                runStage('stage12_mountMediaIso.yml')
+            }
+        }
+
+        stage('stage13_setOnetimeBoot') {
+            steps {
+                runStage('stage13_setOnetimeBoot.yml')
+            }
+        }
+
+        stage('stage14_serverReboot') {
+            steps {
+                runStage('stage14_serverReboot.yml')
+            }
+        }
+
+        stage('stage15_waitForOsInstall') {
+            steps {
+                runStage('stage15_waitForOsInstall.yml')
+            }
+        }
+
+        stage('stage16_unmountMediaIso') {
+            steps {
+                runStage('stage16_unmountMediaIso.yml')
+            }
+        }
+
+        stage('stage17_installFinish') {
+            steps {
+                runStage('stage17_installFinish.yml')
+            }
+        }
+
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+
+def runStage(String stageFile) {
+    ansiblePlaybook(
+        installation     : 'ansible',
+        playbook         : "${WORKSPACE}/playbooks/day1/ansible/playbooks/installRhel/${stageFile}",
+        vaultCredentialsId: 'ansible-vault-pass',
+        colorized        : true,
+        extras           : '-vvv'
+    )
+}

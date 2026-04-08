@@ -1,0 +1,82 @@
+// inventory_json 입력 예시 (원본 Jenkinsfile 의 기본값을 그대로 옮겨둔 값입니다):
+// [
+//   { "bmc_ip": "10.50.11.232", "username": "USERID", "vendor": "lenovo", "OperatingMode_STP1": "MaximumPerformance", "OperatingMode_STP2": "CustomMode", "MONITORMWAIT": "Disabled", "CStates": "Disabled", "Intel_VT": "Disabled" }
+// ]
+//
+//   OperatingMode_STP1  옵션 값 : CustomMode, MaximumPerformance
+//   OperatingMode_STP2  옵션 값 : CustomMode, MaximumPerformance
+//   MONITORMWAIT        옵션 값 : Enabled, Disabled
+//   CStates             옵션 값 : Enabled, Disabled
+//   Intel_VT            옵션 값 : Enabled, Disabled
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc', defaultValue: 'ansible', trim: true)
+        choice(name: 'target_type', choices: ['redfish'])
+        text(name: 'inventory_json', defaultValue: '''[
+  { "bmc_ip": "", "username": "", "vendor": "", "OperatingMode_STP1": "", "OperatingMode_STP2": "", "MONITORMWAIT": "", "CStates": "", "Intel_VT": "" }
+]''')
+    }
+
+    environment {
+        INVENTORY_JSON     = "${params.inventory_json}"
+        TARGET_TYPE        = "${params.target_type}"
+        ANSIBLE_ROLES_PATH = "${WORKSPACE}/playbooks/day1/ansible/roles"
+    }
+
+    stages {
+
+        stage('parse_inventory_json') {
+            steps {
+                script {
+                    if (params.target_type != 'redfish') {
+                        error("target_type must be 'redfish'")
+                    }
+                    def inv = readJSON text: params.inventory_json
+                    if (!(inv instanceof List) || inv.isEmpty()) {
+                        error("inventory_json must be a non-empty JSON array")
+                    }
+                    if (inv.size() > 1) {
+                        echo "WARN: ${inv.size()} hosts; single-host model — only inv[0] is used"
+                    }
+                }
+            }
+        }
+
+        stage('stage01_checkParameters') {
+            steps {
+                runStage('stage01_checkParameters.yml')
+            }
+        }
+
+        stage('stage02_maxperfSettings') {
+            steps {
+                runStage('stage02_maxperfSettings.yml')
+            }
+        }
+
+        stage('stage03_custommodeSettings') {
+            steps {
+                runStage('stage03_custommodeSettings.yml')
+            }
+        }
+
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+
+def runStage(String stageFile) {
+    ansiblePlaybook(
+        installation     : 'ansible',
+        playbook         : "${WORKSPACE}/playbooks/day1/ansible/playbooks/lenovoBios/${stageFile}",
+        vaultCredentialsId: 'ansible-vault-pass',
+        colorized        : true,
+        extras           : '-v'
+    )
+}

@@ -1,0 +1,30 @@
+- name: Get Dell iDRAC session list
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/SessionService/Sessions"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 202, 204]
+  register: dell_sessions_result
+
+- name: Debug Dell session list
+  ansible.builtin.debug:
+    msg: "{{ dell_sessions_result.json.Members }}"
+
+- name: Disconnect Dell Virtual Console sessions
+  uri:
+    url: "https://{{ bmc_ip }}{{ item['@odata.id'] }}"
+    method: DELETE
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 202, 204]
+  loop: "{{ dell_sessions_result.json.Members }}"
+  register: dell_disconnect_result
+
+- name: Debug Dell disconnect result
+  ansible.builtin.debug:
+    msg: "{{ dell_disconnect_result }}"

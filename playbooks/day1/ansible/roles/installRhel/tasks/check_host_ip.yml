@@ -1,0 +1,5 @@
+---
+- name: Check Host ip usage Check
+  shell: "ping -c 5 {{ service_ip }}"
+  register: host_ping_result
+  failed_when: host_ping_result.rc == 0

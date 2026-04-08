@@ -1,0 +1,92 @@
+---
+- name: Normalize parameter values
+  set_fact:
+    system_profile: "PerfOptimized"
+  
+
+- name: Dell BIOS Settings Maximum Performance
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/System.Embedded.1/Bios/Settings"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      "@Redfish.SettingsApplyTime":
+        ApplyTime: "OnReset"
+      Attributes:
+        "SysProfile": "{{ system_profile }}"          # "PerfOptimized"(default)
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: true
+    validate_certs: false
+  register: Settings_Bios_MaxPerformance_Result  
+
+
+- name: Debug BIOS Maxium Performance Settings Result
+  ansible.builtin.debug:
+    msg:
+      Status: "{{ Settings_Bios_MaxPerformance_Result.status }}"
+      MessageId: "{{ Settings_Bios_MaxPerformance_Result.json.error['@Message.ExtendedInfo'][0].MessageId | default('N/A') }}"
+
+
+- name: Dell BIOS Settings Virtualization-MaxPerformance > Reboot step
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset"
+    method: POST
+    user: "{{ username }}"
+    password: "{{ password }}"
+    body:
+      ResetType: GracefulRestart
+    body_format: json
+    status_code: [200, 202, 204]
+    force_basic_auth: true
+    validate_certs: false
+  register: Reboot_Bios_Maxperformance_Result
+  when: Settings_Bios_MaxPerformance_Result.status in [200, 202, 204]
+
+- name: Waiting for Dell BIOS value to change on system
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/System.Embedded.1/Bios"
+    method: GET
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [200, 202, 204]
+  register: Apply_Bios_MaxPerformance_Result
+  until: >-
+    Apply_Bios_MaxPerformance_Result.status in [200, 202, 204] and
+    Apply_Bios_MaxPerformance_Result.json.Attributes.SysProfile is defined and
+    Apply_Bios_MaxPerformance_Result.json.Attributes.SysProfile == 'PerfOptimized'
+  retries: 200
+  delay: 20
+  failed_when: false
+  when: Reboot_Bios_Maxperformance_Result is not skipped
+
+- name: Waiting for initialize Server Status [6 Min]
+  ansible.builtin.pause:
+    minutes: 6
+
+- name: Compare requested values with applied BIOS values
+  set_fact:
+    compare_result_maxperformance:
+      SystemProfile:
+        requested: "{{ system_profile }}"
+        applied: "{{ Apply_Bios_MaxPerformance_Result.json.Attributes.SysProfile | default('N/A') }}"
+        matched: "{{ (system_profile | string | lower) == (Apply_Bios_MaxPerformance_Result.json.Attributes.SysProfile | default('') | string | lower) }}"
+
+
+- name: Compare BIOS Setting Success
+  ansible.builtin.debug:
+    msg:
+      SystemProfile: >-
+        requested={{ compare_result_maxperformance.SystemProfile.requested }},
+        applied={{ compare_result_maxperformance.SystemProfile.applied }},
+        result={{ 'Successfully Changed bios value' if compare_result_maxperformance.SystemProfile.matched else 'Fail to changed bios value' }}
+
+
+- name: Fail if any BIOS setting was not applied correctly
+  fail:
+    msg: "BIOS settings do not match requested value lists."
+  when: >-
+    not compare_result_maxperformance.SystemProfile.matched

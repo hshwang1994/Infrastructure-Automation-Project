@@ -1,0 +1,9 @@
+- name: Pre-Check hosts Directory
+  stat:
+    path: "/ansible-semaphore/redhat/hosts/{{ hostname }}"
+  register: check_dir
+
+- name: Fail if exists
+  fail:
+    msg: "Directory already exists"
+  when: check_dir.stat.exists

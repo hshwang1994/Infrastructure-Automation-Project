@@ -1,0 +1,25 @@
+  - name: Check ISO file exists
+    stat:
+      path: "/ansible-semaphore/base-img/ISO/windows-{{ win_version }}.iso"
+    register: iso_stat
+
+  - name: Download Windows ISO from remote server
+    shell: >
+     wget -c --tries=5 --timeout=30 --waitretry=5 --progress=bar:force -O /ansible-semaphore/base-img/ISO/windows-{{ win_version }}.iso http://10.50.21.52/base-img/windows-{{ win_version }}.iso
+    when: not iso_stat.stat.exists
+    delegate_to: localhost
+  - name: Check extract marker file
+    stat:
+      path: "/ansible-semaphore/base-img/ISO/WINDOWS/{{ win_version }}/.extract_done"
+    register: extract_marker
+
+  - name: Extract ISO contents
+    shell: |
+      7z x /ansible-semaphore/base-img/ISO/windows-{{ win_version }}.iso -o/ansible-semaphore/base-img/ISO/WINDOWS/{{ win_version }}/
+    when: not extract_marker.stat.exists
+  
+  - name: Create extract marker file
+    file:
+      path: "/ansible-semaphore/base-img/ISO/WINDOWS/{{ win_version }}/.extract_done"
+      state: touch
+    when: not extract_marker.stat.exists

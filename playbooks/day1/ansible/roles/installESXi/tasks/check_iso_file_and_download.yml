@@ -1,0 +1,33 @@
+---
+- name: Create base-img directory if not exists
+  ansible.builtin.file:
+    path: "/ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}"
+    state: directory
+    mode: '0755'
+
+- name: Check ESXi ISO file exists
+  stat:
+    path: "{{ esxi_iso_baseImg_path }}"
+  register: esxi_iso_stat_result
+
+- name: Download ESXi ISO from Remote Server
+  shell: >
+    wget -c --tries=5 --timeout=30 --waitretry=5 --progress=bar:force -O {{ esxi_iso_baseImg_path }} {{ remote_server_esxi_iso_baseImg_path }}
+  when: not esxi_iso_stat_result.stat.exists
+  delegate_to: localhost
+
+- name: Check extract marker file
+  stat:
+    path: "/ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}/.extract_done"
+  register: extract_marker
+
+- name: Extract ISO contents
+  shell: |
+    xorriso -osirrox on -indev {{ esxi_iso_baseImg_path }} -extract / /ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}/
+  when: not extract_marker.stat.exists
+
+- name: Create extract marker file
+  file:
+    path: "/ansible-semaphore/base-img/ESXi/{{ vendor }}/{{ esxi_version }}/.extract_done"
+    state: touch
+  when: not extract_marker.stat.exists

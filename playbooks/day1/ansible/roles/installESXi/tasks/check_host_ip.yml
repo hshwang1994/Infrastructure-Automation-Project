@@ -1,0 +1,11 @@
+---
+- name: EXSi Host ip usage Check
+  shell: "ping -c 5 {{ service_ip }}"
+  register: result_check_host_IP
+  failed_when: result_check_host_IP.rc == 0
+
+- name: Debug Check Host ICMP Result
+  ansible.builtin.debug:
+    msg: "{{ result_check_host_IP }}"
+
+

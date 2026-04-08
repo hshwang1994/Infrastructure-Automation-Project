@@ -1,0 +1,19 @@
+---
+- name: Install complete
+  ansible.builtin.debug:
+    msg: "{{ hostname }} install complete"
+
+- name: Remove Custom ISO
+  ansible.builtin.file:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}/{{ esxi_version }}-custom-{{ hostname }}.iso"
+    state: absent
+
+- name: Remove base-img directory
+  ansible.builtin.file:
+    path: "/ansible-semaphore/esxi/hosts/{{ hostname }}/base-img"
+    state: absent
+
+- name: Debug Install Finish
+  ansible.builtin.debug:
+    msg: 
+      - "Remove Custom ISO & Base-Image Directory"

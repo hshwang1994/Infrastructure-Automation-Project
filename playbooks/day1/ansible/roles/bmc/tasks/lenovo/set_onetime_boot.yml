@@ -1,0 +1,21 @@
+- name: LENOVO set one-time boot to Virtual Media (CD) - Once
+  uri:
+    url: "https://{{ bmc_ip }}/redfish/v1/Systems/1"
+    method: PATCH
+    user: "{{ username }}"
+    password: "{{ password }}"
+    force_basic_auth: yes
+    validate_certs: false
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+    body:
+      Boot:
+        BootSourceOverrideEnabled: "Once"
+        BootSourceOverrideTarget: "Cd"
+    status_code: [200, 202, 204]
+  register: onetime_boot_result
+
+- name: Show one-time boot result
+  ansible.builtin.debug:
+    msg: "{{ onetime_boot_result }}"

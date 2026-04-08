@@ -1,0 +1,5 @@
+---
+- name: Check BMC ip usage Check
+  shell: "ping -c 5 {{ bmc_ip }}"
+  register: physical_ip_result
+  failed_when: physical_ip_result.rc != 0
