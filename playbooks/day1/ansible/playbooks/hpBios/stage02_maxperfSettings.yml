@@ -20,7 +20,7 @@
     vendor_name:
       hp:
         role: bios
-        task: dell/maxperfSettings.yml
+        task: hp/maxperfSettings.yml
       
   tasks:
     - name: Set HP Bios Maximum Performance
