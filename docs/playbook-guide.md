@@ -129,8 +129,7 @@ pipeline {
             steps {
                 ansiblePlaybook(
                     installation: 'ansible',
-                    playbook    : "${WORKSPACE}/playbooks/day1/os-install/redfish/site.yml",
-                    inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
+                    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
                     colorized   : true
                 )
             }

@@ -45,7 +45,7 @@ pipeline {
             steps {
                 ansiblePlaybook(
                     installation: 'ansible',
-                    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+                    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
                     colorized   : true
                 )
             }
@@ -136,17 +136,17 @@ Jenkinsfile `environment` 블록에서 선언한다.
 
 ## 인벤토리 설정
 
-인벤토리 경로는 프로젝트 루트의 `ansible.cfg` 에서 관리한다.
+인벤토리는 **Jenkins Agent 에 고정 배치**되어 있으며 경로는 `/etc/ansible/ansible.cfg` 에서 관리한다.
+자세한 절차는 [`ansible-cfg-guide.md`](./ansible-cfg-guide.md) 참고.
 
 ```ini
-# ansible.cfg
+# /etc/ansible/ansible.cfg (Agent 측)
 [defaults]
-inventory = ./inventory/my_inventory.sh
+inventory = /opt/ansible-env/inventory/my_inventory.sh
 ```
 
-`ansiblePlaybook()` 호출 시 `inventory` 파라미터를 생략하면
-Ansible 이 CWD 의 `ansible.cfg` 를 읽어 자동으로 `./inventory/my_inventory.sh` 를 사용한다.
-Jenkins checkout 후 CWD 가 `${WORKSPACE}` 이므로 경로가 정확히 일치한다.
+`ansiblePlaybook()` 호출 시 `inventory` 파라미터를 **생략**하면
+Ansible 이 `/etc/ansible/ansible.cfg` 의 `inventory` 설정을 자동으로 사용한다.
 
-> 이전에는 모든 `ansiblePlaybook()` 호출마다 `inventory : "${WORKSPACE}/inventory/my_inventory.sh"` 를 명시했으나,
-> `ansible.cfg` 도입으로 생략 가능해졌다.
+> Jenkinsfile 에 `inventory` 파라미터를 적지 않는다.
+> 작업 저장소 루트에 `ansible.cfg` 를 두지 않는다 (CWD 의 `ansible.cfg` 가 `/etc/ansible/ansible.cfg` 를 가리기 때문).

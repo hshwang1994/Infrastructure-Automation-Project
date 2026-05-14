@@ -1,30 +1,34 @@
 # GUIDE FOR AI
 
-이 파일과 기존 Jenkinsfile / Playbook 을 함께 AI 프롬프트에 넣으면,
-AI 가 이 프로젝트의 컨벤션에 맞게 리팩토링해준다.
+이 파일을 AI 프롬프트에 넣으면 AI 가 우리 환경(공통 인벤토리 + 공용 Jenkins Agent + Vault)
+컨벤션에 맞게 Jenkinsfile / Playbook 을 작성하거나 리팩토링한다.
+
+> 이 저장소는 **표준 가이드 저장소**이며 실제 작업 코드는 별도 작업 저장소에 있다.
+> AI 는 이 저장소의 표준을 따르되, 산출물은 사용자가 지정하는 작업 저장소 경로에 만든다.
 
 ---
 
-## 1. Repo 구조
+## 1. Repo 구조 (가이드 저장소)
 
 ```
-Infrastructure-Automation-Project/
+automation-standards-guide/
   inventory/
     my_inventory.sh        ← 동적 인벤토리 스크립트 (모든 작업에서 공통 사용)
   vault/
-    linux.yml              ← Linux 접속 계정
-    windows.yml            ← Windows 접속 계정
-    esxi.yml               ← ESXi 접속 계정
+    linux.yml              ← Linux 접속 계정 템플릿
+    windows.yml            ← Windows 접속 계정 템플릿
+    esxi.yml               ← ESXi 접속 계정 템플릿
     redfish/
-      dell.yml             ← Dell BMC 접속 계정
+      dell.yml             ← Dell BMC 접속 계정 템플릿
       hpe.yml / lenovo.yml / supermicro.yml
-  playbooks/
-    day1/                  ← 서버 최초 구성 작업
-    day2/                  ← 운영 작업 (점검, 패치, 펌웨어 등)
   docs/
+    ansible-cfg-guide.md   ← ansible.cfg 표준
     jenkinsfile-guide.md   ← Jenkinsfile 작성 표준 (상세)
     playbook-guide.md      ← Playbook 작성 표준 (상세)
 ```
+
+> 작업 저장소 쪽의 Playbook 디렉터리 구조는 작업 저장소 README 에서 별도 정의한다.
+> 이 가이드는 **각 파일을 어떻게 작성할지**에만 책임을 진다.
 
 ---
 
@@ -69,7 +73,7 @@ environment {
 ```groovy
 ansiblePlaybook(
     installation: 'ansible',
-    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
     colorized   : true
 )
 ```
@@ -197,7 +201,7 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] `defaultValue` 가 빈 값인가? (테스트용 IP 하드코딩 금지)
 - [ ] `environment` 에 `INVENTORY_JSON`, `TARGET_TYPE`, `REPO_ROOT` 가 있는가?
 - [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
-- [ ] `playbook` 경로가 `${WORKSPACE}/playbooks/...` 로 시작하는가?
+- [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가? (작업 저장소 기준 절대경로)
 - [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
 
 ### Playbook
@@ -227,16 +231,16 @@ GUIDE_FOR_AI.md 를 참고해서 파라미터, 환경변수, vault, inventory �
 ### 새 작업 생성
 
 ```
-이 프로젝트 컨벤션에 맞게
-playbooks/day2/ntp-sync/linux/ 에 들어갈 Jenkinsfile 과 site.yml 을 만들어줘.
+automation-standards-guide 컨벤션에 맞게
+{작업 저장소 경로}/{작업명}/{OS타입}/ 에 들어갈 Jenkinsfile 과 site.yml 을 만들어줘.
 NTP 서버 동기화 작업이고 대상은 Linux 야.
 ```
 
 ### 확장 필드가 필요한 작업
 
 ```
-이 프로젝트 컨벤션에 맞게
-playbooks/day1/os-install/redfish/ 에 들어갈 Jenkinsfile 과 site.yml 을 만들어줘.
+automation-standards-guide 컨벤션에 맞게
+{작업 저장소 경로}/{작업명}/redfish/ 에 들어갈 Jenkinsfile 과 site.yml 을 만들어줘.
 BMC 통한 OS 설치이고, 포털에서 아래 필드가 들어와:
 bmc_ip, service_ip, hostname, vendor, gateway, netmask, dns_servers, os_image, boot_mode
 ```

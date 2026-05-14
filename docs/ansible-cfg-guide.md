@@ -13,8 +13,8 @@ Jenkinsfile 에서 `inventory` 파라미터를 생략할 수 있다.
 Git 에서 원본을 가져와 Agent 에 배치한다.
 
 ```bash
-# 프로젝트 clone (또는 기존 clone 에서 pull)
-git clone https://github.com/hshwang1994/Infrastructure-Automation-Project.git /tmp/repo
+# 가이드 저장소 clone (또는 기존 clone 에서 pull)
+git clone https://github.com/hshwang1994/automation-standards-guide.git /tmp/repo
 
 # 인벤토리 스크립트 배치
 sudo mkdir -p /opt/ansible-env/inventory
@@ -75,7 +75,7 @@ Ansible 이 `/etc/ansible/ansible.cfg` 의 `inventory` 설정을 자동으로 �
 // Before — inventory 매번 명시
 ansiblePlaybook(
     installation: 'ansible',
-    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
     inventory   : "${WORKSPACE}/inventory/my_inventory.sh",
     colorized   : true
 )
@@ -83,7 +83,7 @@ ansiblePlaybook(
 // After — inventory 생략
 ansiblePlaybook(
     installation: 'ansible',
-    playbook    : "${WORKSPACE}/playbooks/작업경로/site.yml",
+    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
     colorized   : true
 )
 ```

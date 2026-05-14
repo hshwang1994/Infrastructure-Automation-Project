@@ -1,9 +1,19 @@
-# Infrastructure Automation Project
+# Automation Standards Guide
 
-Jenkins + Ansible 기반 인프라 자동화 프로젝트입니다.
-포털에서 작업을 요청하면 Jenkins 가 Ansible Playbook 을 실행하여 서버를 관리합니다.
+> Jenkins + Ansible 자동화 작업을 우리 환경(공통 인벤토리 스크립트 + 공용 Jenkins Agent + Vault)에 맞춰 어떻게 작성해야 하는지 정리한 **표준 가이드 저장소**입니다.
+> 실제 운영 Playbook 코드는 이 저장소에 두지 않습니다.
 
-## 전체 흐름
+## 이 저장소의 역할
+
+이 저장소는 **무엇을 작성할지가 아니라, 어떻게 작성할지**를 정의합니다.
+
+- 새 Jenkins Job / Ansible Playbook 을 만들 때 따라야 할 **컨벤션**
+- 우리 환경(`inventory/my_inventory.sh`, 공용 Agent, Vault)에 **어떻게 연결**해야 하는지
+- AI 가 컨벤션에 맞게 코드를 생성하도록 돕는 **컨텍스트 입력**
+
+실제 운영 Playbook 은 별도의 작업 저장소에 위치합니다.
+
+## 우리 환경 기본 구성
 
 ```
 포털 (HTTP POST)
@@ -11,7 +21,7 @@ Jenkins + Ansible 기반 인프라 자동화 프로젝트입니다.
   ├─ target_type: "linux | windows | esxi | redfish"
   └─ inventory_json: [{"bmc_ip": "...", "service_ip": "...", ...}]
          ↓
-    Jenkins Job
+    Jenkins Job (이 가이드 표준 준수)
     ├─ 파라미터 수신 (loc, target_type, inventory_json)
     ├─ 환경변수 설정 (INVENTORY_JSON, TARGET_TYPE, REPO_ROOT)
     └─ ansible-playbook 실행
@@ -22,19 +32,17 @@ Jenkins + Ansible 기반 인프라 자동화 프로젝트입니다.
     └─ playbook 실행 → 결과 출력
 ```
 
-## 프로젝트 구조
+## 저장소 구조
 
 ```
-Infrastructure-Automation-Project/
-├── docs/                          ← 개발자 가이드 (필독)
+automation-standards-guide/
+├── docs/                          ← 가이드 본문 (필독)
+│   ├── ansible-cfg-guide.md       ← ansible.cfg 표준
 │   ├── jenkinsfile-guide.md       ← Jenkinsfile 작성 표준
 │   └── playbook-guide.md          ← Playbook 작성 표준
-├── playbooks/                     ← Jenkinsfile + Playbook
-│   ├── day1/                      ← 서버 최초 구성 작업
-│   └── day2/                      ← 운영 작업 (점검, 패치 등)
 ├── inventory/
-│   └── my_inventory.sh            ← 동적 인벤토리 스크립트
-├── vault/                         ← 접속 계정 정보
+│   └── my_inventory.sh            ← 모든 작업이 공통으로 쓰는 동적 인벤토리 스크립트
+├── vault/                         ← 접속 계정 정보 템플릿
 │   ├── linux.yml
 │   ├── windows.yml
 │   ├── esxi.yml
@@ -43,30 +51,16 @@ Infrastructure-Automation-Project/
 │       ├── hpe.yml
 │       ├── lenovo.yml
 │       └── supermicro.yml
-└── GUIDE_FOR_AI.md                ← AI 자동 생성용 가이드
+└── GUIDE_FOR_AI.md                ← AI 자동 생성용 컨텍스트
 ```
 
-## 새 작업 추가 방법
+## 새 작업 추가 시 따라야 할 흐름
 
-1. `docs/jenkinsfile-guide.md` 를 읽고 Jenkinsfile 작성
-2. `docs/playbook-guide.md` 를 읽고 Playbook 작성
-3. `playbooks/day1/` 또는 `playbooks/day2/` 하위에 디렉토리 생성
-4. Jenkins 에 Job 등록
-
-```
-playbooks/day2/{작업명}/{OS타입}/
-  ├── Jenkinsfile
-  └── site.yml
-```
-
-## 예시 Playbook 패턴 (day2)
-
-| 패턴 | 설명 | 위치 |
-|------|------|------|
-| single-stage-single-playbook | 1스테이지, 1플레이북 | `day2/single-stage-single-playbook/linux/` |
-| single-stage-multi-playbook | 1스테이지, N플레이북 | `day2/single-stage-multi-playbook/linux/` |
-| multi-stage-single-playbook | N스테이지, 1플레이북 | `day2/multi-stage-single-playbook/linux/` |
-| multi-stage-multi-playbook | N스테이지, N플레이북 | `day2/multi-stage-multi-playbook/linux/` |
+1. `docs/jenkinsfile-guide.md` 를 읽고 Jenkinsfile 작성 규칙 확인
+2. `docs/playbook-guide.md` 를 읽고 Playbook 작성 규칙 확인
+3. `docs/ansible-cfg-guide.md` 를 읽고 ansible.cfg 표준 확인
+4. 작업 저장소에 위 표준에 맞게 Jenkinsfile + Playbook 작성
+5. Jenkins 에 Job 등록
 
 ## 설계 원칙
 
