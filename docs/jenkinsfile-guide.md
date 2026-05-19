@@ -9,7 +9,7 @@
 
 ```groovy
 pipeline {
-    agent { label "${params.loc}" }
+    agent { label "${params.loc} && ${params.target_type}" }
 
     parameters {
         // 포털 전달: Agent 위치 (ich | chj | yi)

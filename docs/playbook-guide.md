@@ -92,7 +92,7 @@ vars:
 Jenkinsfile (target_type = redfish):
 ```groovy
 pipeline {
-    agent { label "${params.loc}" }
+    agent { label "${params.loc} && ${params.target_type}" }
 
     parameters {
         string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치')
