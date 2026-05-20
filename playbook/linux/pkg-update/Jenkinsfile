@@ -18,46 +18,29 @@ pipeline {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/redfish-fw-update/pre.yml",
+                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/pre.yml",
                     vaultCredentialsId: 'ansible-vault-password',
                     colorized         : true
                 )
             }
         }
 
-        stage('Backup') {
+        stage('Update') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/redfish-fw-update/backup.yml",
+                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/update.yml",
                     vaultCredentialsId: 'ansible-vault-password',
                     colorized         : true
                 )
             }
         }
 
-        stage('Approve') {
-            steps {
-                input message: '펌웨어 업그레이드를 진행하시겠습니까? (Pre-check + Backup 통과)', ok: '진행'
-            }
-        }
-
-        stage('Upgrade') {
+        stage('Post-verify') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/redfish-fw-update/upgrade.yml",
-                    vaultCredentialsId: 'ansible-vault-password',
-                    colorized         : true
-                )
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                ansiblePlaybook(
-                    installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/redfish-fw-update/verify.yml",
+                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/post.yml",
                     vaultCredentialsId: 'ansible-vault-password',
                     colorized         : true
                 )

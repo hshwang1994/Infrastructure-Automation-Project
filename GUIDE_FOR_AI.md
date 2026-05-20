@@ -7,16 +7,16 @@ AI 가 이 저장소 컨벤션대로 Jenkinsfile / Playbook 을 만들거나 고
 1. `docs/jenkinsfile-guide.md` — Jenkinsfile 규칙
 2. `docs/playbook-guide.md` — Playbook 규칙
 3. `docs/ansible-cfg-guide.md` — ansible.cfg 표준 (Agent 측 설정)
-4. `playbook/{linux-ntp,windows-service,esxi-uptime,redfish-bmc-info}/` — 작동하는 예시 (Jenkinsfile + site.yml)
+4. `playbook/linux/` 와 `playbook/windows/` 하위 작업 디렉토리 — 작동하는 예시 (Jenkinsfile + site.yml)
 5. `inventory/my_inventory.sh` — 인벤토리 라우팅 동작 (docstring 에 입출력 예시)
 6. `credentials/README.md`, `vault/README.md` — 자격증명 흐름
 
 ## 새 작업 만들 때
 
-1. `playbook/` 아래 새 디렉토리 생성: `playbook/{작업명}/`
-2. 같은 target_type 의 기존 예시를 복사해서 시작
-3. `Jenkinsfile` 의 `playbook:` 경로를 새 작업 경로로 수정
-4. `site.yml` 의 tasks 만 새 작업 내용으로 교체
+1. `playbook/{linux|windows}/` 아래 새 디렉토리 생성: 예) `playbook/linux/foo-bar/`
+2. 같은 target_type 의 기존 예시 디렉토리를 통째로 복사
+3. `Jenkinsfile` 의 `playbook:` 경로를 새 디렉토리로 수정
+4. `site.yml` (또는 다단계 playbook) 의 tasks 만 새 작업 내용으로 교체
 
 target_type 별 기본값은 `docs/playbook-guide.md` 의 표 참고.
 

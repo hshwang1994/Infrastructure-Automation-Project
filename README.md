@@ -12,10 +12,8 @@
 │   ├── playbook-guide.md          Playbook 규칙
 │   └── ansible-cfg-guide.md       Agent 측 ansible.cfg 표준
 ├── playbook/                       작동하는 예시 (Jenkinsfile + site.yml 쌍)
-│   ├── linux-ntp/
-│   ├── windows-service/
-│   ├── esxi-uptime/
-│   └── redfish-bmc-info/
+│   ├── linux/                      linux target_type 예시들 (ntp, pkg-update, disk-check, roles, block-rescue, tags)
+│   └── windows/                    windows target_type 예시들 (service, powershell)
 ├── inventory/
 │   └── my_inventory.sh             동적 인벤토리 (포털 JSON → Ansible inventory)
 ├── credentials/                    평문 자격증명 원본 (사람이 편집)

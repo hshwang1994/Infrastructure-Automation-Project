@@ -18,7 +18,7 @@ pipeline {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/esxi-uptime/site.yml",
+                    playbook          : "${WORKSPACE}/playbook/windows/service/site.yml",
                     vaultCredentialsId: 'ansible-vault-password',
                     colorized         : true
                 )

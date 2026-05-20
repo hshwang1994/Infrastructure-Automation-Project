@@ -79,5 +79,5 @@ playbook 에서:
 Jenkins 없이 돌릴 때:
 
 ```
-ansible-playbook playbook/linux-ntp/site.yml --ask-vault-pass
+ansible-playbook playbook/linux/ntp/site.yml --ask-vault-pass
 ```
