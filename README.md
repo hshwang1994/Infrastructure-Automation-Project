@@ -26,17 +26,19 @@
 
 ## 실행 흐름
 
-```
-포털 → loc, target_type, inventory_json 을 Jenkins job 에 전달
-  → Jenkins job 이 ansiblePlaybook(vaultCredentialsId: ansible-vault-password) 실행
-  → my_inventory.sh 가 inventory_json 을 Ansible inventory 로 변환
-  → playbook 이 vars_files 로 vault/{target_type}.yml 로딩 (런타임 자동 복호화)
-  → 작업 실행
-```
+각 부분이 무슨 일을 하는지:
+
+| 단계 | 누가 | 무엇을 |
+|------|------|-------|
+| 1 | 포털 | `loc`, `target_type`, `inventory_json` 세 파라미터로 Jenkins job 트리거 |
+| 2 | Jenkinsfile | 위 값을 환경변수로 노출하고 `ansiblePlaybook(vaultCredentialsId: ...)` 호출 |
+| 3 | `inventory/my_inventory.sh` | `INVENTORY_JSON` + `TARGET_TYPE` 을 읽어 ansible 인벤토리 JSON 으로 변환 |
+| 4 | ansible-playbook | playbook 의 `vars_files` 로 `vault/{target_type}.yml` 을 읽으면서 Jenkins 가 넘긴 vault 비밀번호로 자동 복호화 |
+| 5 | playbook | `ansible_user` / `ansible_password` 로 타겟 서버에 SSH/WinRM/HTTPS 접속 후 task 실행 |
 
 ## 새 작업 만들기
 
-`playbook/{작업명}/` 에 `Jenkinsfile` + `site.yml` 추가. 같은 target_type 의 기존 예시를 복사해서 시작한다.
+`playbook/{linux|windows}/{작업명}/` 디렉토리를 만들고 그 안에 `Jenkinsfile` + `site.yml` 을 둔다. 가장 비슷한 기존 예시 디렉토리를 통째로 복사해서 시작하면 된다.
 
 ## 자격증명 초기 설정 (1회)
 

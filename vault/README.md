@@ -1,52 +1,52 @@
-# vault/ — 자격증명 파일 (런타임 사용)
+# vault/ — ansible 이 실행 중 읽는 자격증명 파일
 
-이 디렉토리의 `*.yml` 은 Ansible 이 런타임에 읽는 자격증명 파일입니다.
+## 두 가지 상태
 
-## 파일 상태 — 두 가지
+이 디렉토리의 `*.yml` 은 **암호화 전** 과 **암호화 후** 두 상태가 가능하다.
 
-| 상태 | 모양 | 비고 |
-|------|------|------|
-| **암호화 전 (현재)** | 평문 YAML — `credentials/{type}.yml` 와 동일한 내용 | placeholder, **commit 하지 말 것 권장** |
-| **암호화 후 (운영용)** | `$ANSIBLE_VAULT;1.1;AES256...` 로 시작하는 ansible-vault 형식 | 정상 상태, commit 가능 |
+| 상태 | 파일 모양 | 비고 |
+|------|---------|------|
+| **암호화 전** (현재 commit 된 상태) | `credentials/{type}.yml` 과 동일한 평문 YAML | 자리 잡기용 placeholder. 운영에선 commit 하지 말 것 |
+| **암호화 후** (운영 상태) | `$ANSIBLE_VAULT;1.1;AES256...` 로 시작하는 이진 비슷한 텍스트 | ansible-playbook 이 vault 비밀번호로 자동 복호화 |
 
-## 처음 사용할 때 절차
+처음 clone 받으면 평문 placeholder 상태이고, `./scripts/encrypt-vault.sh` 를 한 번 돌리면 같은 파일들이 암호화 형식으로 덮어써진다.
 
-1. `credentials/{type}.yml` 의 평문 값 확인/편집 (필요 시)
-2. `./scripts/encrypt-vault.sh` 실행 → vault 비밀번호 입력
-3. 이 디렉토리의 `*.yml` 이 ansible-vault 형식으로 **덮어써짐**
-4. `git add vault/ && git commit -m "vault: encrypt"`
+## 처음 셋업
 
-## 파일 내용 확인 (현재는 평문이므로 그대로 보임)
+```bash
+# 1. 평문 값 확인/수정
+vi credentials/linux.yml
 
-암호화 전:
-```yaml
----
-ansible_user:     infra
-ansible_password: infra1234
+# 2. 암호화 — vault 비밀번호를 입력
+./scripts/encrypt-vault.sh
+
+# 3. 이제 vault/*.yml 이 $ANSIBLE_VAULT 헤더로 시작하는 암호문이 됨
+head -1 vault/linux.yml
+# $ANSIBLE_VAULT;1.1;AES256
+
+# 4. commit
+git add vault/ && git commit -m "vault: encrypt" && git push
 ```
 
-암호화 후:
+이후 `credentials/` 의 값을 바꿀 때마다 2~4번 반복.
+
+## ansible 이 어떻게 쓰는가
+
+Jenkinsfile:
+```groovy
+ansiblePlaybook(..., vaultCredentialsId: 'ansible-vault-password')
 ```
-$ANSIBLE_VAULT;1.1;AES256
-66386439653236336462626566653063336164663966303231363934653561363964363833313662
-6431626536303530376336343832656537303632313433360a626438346336353331386135323734
-...
-```
 
-## 런타임 결합
-
-플러그인 측:
-- Jenkins Credential `ansible-vault-password` (Secret Text) 에 vault 비밀번호 등록
-- Jenkinsfile 에서 `ansiblePlaybook(vaultCredentialsId: 'ansible-vault-password', ...)`
-
-Playbook 측:
+Playbook:
 ```yaml
 vars_files:
   - "{{ lookup('env', 'REPO_ROOT') }}/vault/{target_type}.yml"
 ```
 
-복호화 결과로 `ansible_user`, `ansible_password` (linux 는 `ansible_become_password` 추가) 가 변수로 노출됨.
+→ ansible-playbook 이 위 Jenkins credential 의 값을 vault 비밀번호로 받아 자동 복호화 → playbook 안에서 `ansible_user`, `ansible_password` 가 변수로 잡힘.
 
-## 디버그용 복호화
+## 디버그용으로 평문 보고 싶을 때
 
-`./scripts/decrypt-vault.sh` 실행 → vault 비밀번호 입력 → `credentials/` 에 평문이 다시 채워짐.
+```bash
+./scripts/decrypt-vault.sh    # vault/*.yml → credentials/*.yml 평문으로 복원
+```

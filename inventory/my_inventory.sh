@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
 """
-동적 인벤토리 스크립트
+ansible 동적 인벤토리 스크립트.
 
-환경변수 INVENTORY_JSON 또는 .inventory_input.json 파일을 읽어
-Ansible 호환 인벤토리 JSON 을 stdout 으로 출력한다.
+ansible 이 이 파일을 실행하면 stdout 으로 ansible-inventory 호환 JSON 을 출력한다.
+ansible 은 그 JSON 을 읽어서 어떤 호스트에 어떻게 접속할지 정한다.
 
-환경변수:
-  INVENTORY_JSON  — 포털이 전달하는 호스트 배열 (JSON 문자열)
+무엇을 하는가:
+  포털이 보낸 호스트 JSON (환경변수 INVENTORY_JSON) 을 받아서,
+  TARGET_TYPE 을 보고 호스트마다 inventory_hostname / ansible_host 만 정해주고,
+  나머지 필드는 손대지 않고 그대로 hostvars 에 넣어준다.
+  필드의 의미는 각 playbook 이 알아서 해석한다.
+
+읽는 환경변수:
+  INVENTORY_JSON  — 포털이 보낸 호스트 배열 (JSON 문자열)
   TARGET_TYPE     — 대상 종류 (linux | windows | esxi | redfish)
 
-입력 우선순위:
-  1. 환경변수 INVENTORY_JSON (값이 있으면 사용)
-  2. WORKSPACE/.inventory_input.json 파일 (Jenkinsfile writeFile 로 생성)
-  3. 둘 다 없으면 에러
+INVENTORY_JSON 가 비어 있으면 WORKSPACE/.inventory_input.json 파일을 대신 읽는다.
+둘 다 없으면 에러로 종료.
 
-inventory_hostname 결정 규칙 (TARGET_TYPE 기반):
-  - redfish  → inventory_hostname = bmc_ip,      ansible_host = bmc_ip
-  - 그 외    → inventory_hostname = hostname,     ansible_host = service_ip
+inventory_hostname / ansible_host 결정 규칙:
+  redfish              : inventory_hostname = bmc_ip,    ansible_host = bmc_ip
+  linux/windows/esxi   : inventory_hostname = hostname,  ansible_host = service_ip
 
-이 스크립트는 "라우터" 역할만 한다.
-  TARGET_TYPE 을 보고 inventory_hostname / ansible_host 를 결정하고,
-  나머지 필드는 그대로 hostvars 에 전달한다.
-  필드 해석은 각 playbook 에서 처리한다.
+(이름과 접속 IP 가 redfish 만 같은 이유: BMC 에는 hostname 이 없어서 IP 가 곧 식별자.)
 
 INVENTORY_JSON 형식 예시:
   [
