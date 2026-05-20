@@ -1,0 +1,22 @@
+---
+- name: NTP 동기화 점검
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: true
+
+    - ansible.builtin.command: chronyc tracking
+      register: tracking
+      changed_when: false
+
+    - ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ tracking.stdout_lines }}"

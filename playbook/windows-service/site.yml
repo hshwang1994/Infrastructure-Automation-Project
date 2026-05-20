@@ -1,0 +1,21 @@
+---
+- name: Spooler 서비스 상태 점검
+  hosts: all
+  gather_facts: true
+  connection: winrm
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port:                         5985
+
+  tasks:
+    - ansible.windows.win_service:
+        name: Spooler
+      register: svc
+
+    - ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: Spooler={{ svc.state }}"
