@@ -1,6 +1,6 @@
 # Automation Standards Guide
 
-> Jenkins + Ansible 자동화 작업을 우리 환경(공통 인벤토리 스크립트 + 공용 Jenkins Agent + Vault)에 맞춰 어떻게 작성해야 하는지 정리한 **표준 가이드 저장소**입니다.
+> Jenkins + Ansible 자동화 작업을 우리 환경(공통 인벤토리 스크립트 + 공용 Jenkins Agent + Jenkins Credentials)에 맞춰 어떻게 작성해야 하는지 정리한 **표준 가이드 저장소**입니다.
 > 실제 운영 Playbook 코드는 이 저장소에 두지 않습니다.
 
 ## 이 저장소의 역할
@@ -8,7 +8,7 @@
 이 저장소는 **무엇을 작성할지가 아니라, 어떻게 작성할지**를 정의합니다.
 
 - 새 Jenkins Job / Ansible Playbook 을 만들 때 따라야 할 **컨벤션**
-- 우리 환경(`inventory/my_inventory.sh`, 공용 Agent, Vault)에 **어떻게 연결**해야 하는지
+- 우리 환경(`inventory/my_inventory.sh`, 공용 Agent, Jenkins Credentials)에 **어떻게 연결**해야 하는지
 - AI 가 컨벤션에 맞게 코드를 생성하도록 돕는 **컨텍스트 입력**
 
 실제 운영 Playbook 은 별도의 작업 저장소에 위치합니다.
@@ -24,11 +24,12 @@
     Jenkins Job (이 가이드 표준 준수)
     ├─ 파라미터 수신 (loc, target_type, inventory_json)
     ├─ 환경변수 설정 (INVENTORY_JSON, TARGET_TYPE, REPO_ROOT)
-    └─ ansible-playbook 실행
+    ├─ withCredentials → Jenkins Credentials 에서 계정 추출
+    └─ ansiblePlaybook(extraVars: ansible_user/password — hidden) 실행
          ↓
     Ansible
     ├─ inventory/my_inventory.sh → 동적 인벤토리 생성
-    ├─ vault/*.yml → 인증정보 로딩
+    ├─ extraVars 로 주입된 ansible_user / password 로 인증
     └─ playbook 실행 → 결과 출력
 ```
 
@@ -38,21 +39,14 @@
 automation-standards-guide/
 ├── docs/                          ← 가이드 본문 (필독)
 │   ├── ansible-cfg-guide.md       ← ansible.cfg 표준
-│   ├── jenkinsfile-guide.md       ← Jenkinsfile 작성 표준
+│   ├── jenkinsfile-guide.md       ← Jenkinsfile 작성 표준 (Jenkins Credentials 포함)
 │   └── playbook-guide.md          ← Playbook 작성 표준
 ├── inventory/
 │   └── my_inventory.sh            ← 모든 작업이 공통으로 쓰는 동적 인벤토리 스크립트
-├── vault/                         ← 접속 계정 정보 템플릿
-│   ├── linux.yml
-│   ├── windows.yml
-│   ├── esxi.yml
-│   └── redfish/
-│       ├── dell.yml
-│       ├── hpe.yml
-│       ├── lenovo.yml
-│       └── supermicro.yml
 └── GUIDE_FOR_AI.md                ← AI 자동 생성용 컨텍스트
 ```
+
+> 서버 접속 계정은 저장소가 아닌 **Jenkins Credentials** (Manage Jenkins → Credentials → Global) 에 보관합니다. 표준 Credential ID 목록은 `docs/jenkinsfile-guide.md` 와 `GUIDE_FOR_AI.md` 참고.
 
 ## 새 작업 추가 시 따라야 할 흐름
 

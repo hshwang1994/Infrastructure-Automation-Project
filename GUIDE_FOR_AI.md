@@ -1,6 +1,6 @@
 # GUIDE FOR AI
 
-이 파일을 AI 프롬프트에 넣으면 AI 가 우리 환경(공통 인벤토리 + 공용 Jenkins Agent + Vault)
+이 파일을 AI 프롬프트에 넣으면 AI 가 우리 환경(공통 인벤토리 + 공용 Jenkins Agent + Jenkins Credentials)
 컨벤션에 맞게 Jenkinsfile / Playbook 을 작성하거나 리팩토링한다.
 
 > 이 저장소는 **표준 가이드 저장소**이며 실제 작업 코드는 별도 작업 저장소에 있다.
@@ -14,25 +14,52 @@
 automation-standards-guide/
   inventory/
     my_inventory.sh        ← 동적 인벤토리 스크립트 (모든 작업에서 공통 사용)
-  vault/
-    linux.yml              ← Linux 접속 계정 템플릿
-    windows.yml            ← Windows 접속 계정 템플릿
-    esxi.yml               ← ESXi 접속 계정 템플릿
-    redfish/
-      dell.yml             ← Dell BMC 접속 계정 템플릿
-      hpe.yml / lenovo.yml / supermicro.yml
   docs/
     ansible-cfg-guide.md   ← ansible.cfg 표준
     jenkinsfile-guide.md   ← Jenkinsfile 작성 표준 (상세)
     playbook-guide.md      ← Playbook 작성 표준 (상세)
 ```
 
+> 자격증명은 저장소 파일이 아니라 **Jenkins Credentials** 에 저장한다 (§2 참고).
 > 작업 저장소 쪽의 Playbook 디렉터리 구조는 작업 저장소 README 에서 별도 정의한다.
 > 이 가이드는 **각 파일을 어떻게 작성할지**에만 책임을 진다.
 
 ---
 
-## 2. Jenkinsfile 컨벤션
+## 2. Jenkins Credentials (자격증명 보관소)
+
+서버 접속 계정은 **vault 파일이 아닌 Jenkins Credentials** 에 저장한다. Jenkinsfile 이 `withCredentials` 로 꺼내서 `ansiblePlaybook(extraVars: ...)` 로 playbook 에 주입한다. `hidden: true` 가 콘솔 마스킹을 보장.
+
+### 표준 Credential ID
+
+**linux / windows 공용** (현재 사양: `infra` / `infra1234` — 사내 테스트 계정)
+
+| ID | 종류 | 값 | 매핑 |
+|---|---|---|---|
+| `ansible-infra-user` | Secret Text | `infra` | `ansible_user` |
+| `ansible-infra-pass` | Secret Text | `infra1234` | `ansible_password`, `ansible_become_password` |
+
+**ESXi** (별도 ID)
+
+| ID | 종류 | 매핑 |
+|---|---|---|
+| `ansible-esxi-user` | Secret Text | `ansible_user` |
+| `ansible-esxi-pass` | Secret Text | `ansible_password` |
+
+**Redfish** (vendor 별 분리)
+
+| ID 패턴 | 종류 |
+|---|---|
+| `ansible-redfish-{vendor}-user` | Secret Text |
+| `ansible-redfish-{vendor}-pass` | Secret Text |
+
+> vendor: `dell` / `hpe` / `lenovo` / `supermicro`
+
+자세한 표·등록 절차·target_type 별 `withCredentials` 코드 패턴은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+
+---
+
+## 3. Jenkinsfile 컨벤션
 
 ### 예약 파라미터 (3개 필수)
 
@@ -52,6 +79,14 @@ parameters {
 }
 ```
 
+### agent 라벨
+
+```groovy
+agent { label "${params.loc} && ${params.target_type}" }
+```
+
+위치(`loc`)와 대상 종류(`target_type`) 라벨을 모두 가진 Agent 에서만 실행.
+
 ### environment 블록 (3개 필수)
 
 ```groovy
@@ -62,63 +97,76 @@ environment {
 }
 ```
 
-### ansiblePlaybook 호출
+### ansiblePlaybook 호출 (withCredentials 필수)
 
 ```groovy
-ansiblePlaybook(
-    installation: 'ansible',
-    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-    colorized   : true
-)
+stages {
+    stage('Run Ansible') {
+        steps {
+            withCredentials([
+                string(credentialsId: 'ansible-infra-user', variable: 'U'),
+                string(credentialsId: 'ansible-infra-pass', variable: 'P')
+            ]) {
+                ansiblePlaybook(
+                    installation: 'ansible',
+                    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+                    extraVars   : [
+                        ansible_user           : [value: "${U}", hidden: true],
+                        ansible_password       : [value: "${P}", hidden: true],
+                        ansible_become_password: [value: "${P}", hidden: true]   // linux 만
+                    ],
+                    colorized: true
+                )
+            }
+        }
+    }
+}
 ```
 
-> `installation: 'ansible'` 은 Jenkins Global Tool Configuration 에 등록된 Ansible 이름이다.
-> 경로(`/opt/ansible-env/bin`)는 Jenkins 설정에서 관리하며 Jenkinsfile 에 하드코딩하지 않는다.
-
-> `inventory` 파라미터는 생략한다. Agent 의 `/etc/ansible/ansible.cfg` 가 `/opt/ansible-env/inventory/my_inventory.sh` 를 기본 인벤토리로 지정하고 있다. 자세한 절차는 [`docs/ansible-cfg-guide.md`](./docs/ansible-cfg-guide.md) 참고.
-
-### inventory_json defaultValue 작성법
-
-`defaultValue` 는 **항상 `'[]'`** 만 둔다. 필드/값 정의는 Jenkinsfile 의 책임이 아니다.
-
-- 포털이 작업별 필드 스키마를 자체적으로 관리하고, 실행 시 전체 JSON 을 채워서 전달한다.
-- "배열이다" 와 "필수 필드가 있다" 는 검증은 `inventory/my_inventory.sh` 가 전담한다.
-- 따라서 Jenkinsfile 에 필드 목록을 박지 않는다 — 작업이 추가될 때 Jenkinsfile 을 안 건드려도 된다.
-
-```groovy
-text(
-    name        : 'inventory_json',
-    defaultValue: '[]',
-    description : '포털 전달: 타겟 호스트 JSON 배열'
-)
-```
-
-> 수동 빌드(Build with Parameters) 시에는 빈 배열 `[]` 로 시작 → `my_inventory.sh` 가 즉시 "배열이 비어있다" 에러로 안전하게 막는다.
+> `installation: 'ansible'` 은 Jenkins Global Tool Configuration 의 Ansible 이름. 경로는 Jenkins 가 관리.
+> `inventory` 파라미터는 생략. Agent 의 `/etc/ansible/ansible.cfg` 가 자동 사용.
+> `extraVars` 의 `hidden: true` 가 콘솔 마스킹을 보장. 빠뜨리면 비밀번호가 로그에 노출됨.
+> target_type 별 변형(windows: become 없음 / redfish: vendor 별 credential)은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 참고.
 
 ---
 
-## 3. Playbook 컨벤션
+## 4. Playbook 컨벤션
 
 ### 서버 타입별 기준
 
-| target_type | connection | gather_facts | vault 파일 |
-|------------|-----------|--------------|-----------|
-| linux | ssh | true (운영) / false (OS 설치 전) | vault/linux.yml |
-| windows | winrm | true (운영) / false (OS 설치 전) | vault/windows.yml |
-| esxi | ssh | true (운영) / false (OS 설치 전) | vault/esxi.yml |
-| redfish | local | false | vault/redfish/{vendor}.yml |
+| target_type | connection | gather_facts | become | 사용 Credentials |
+|------------|-----------|--------------|--------|-----------------|
+| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-infra-*` |
+| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-infra-*` |
+| esxi | ssh | true (운영) / false (OS 설치 전) | no | `ansible-esxi-*` |
+| redfish | local | false (BMC 접속) | no | `ansible-redfish-{vendor}-*` |
 
-### vault 참조
+### 자격증명 참조
+
+Playbook 안에서는 그냥 `{{ ansible_user }}` / `{{ ansible_password }}` 로 참조. Jenkinsfile 이 주입한다.
 
 ```yaml
-vars_files:
-  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+# linux/windows/esxi — ssh/winrm 이 ansible_user/ansible_password 를 자동 사용
+become: true   # linux 만
+
+# redfish — uri 모듈 등에서 명시적으로 사용
+- ansible.builtin.uri:
+    url: "https://{{ inventory_hostname }}/redfish/v1/..."
+    user: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
 ```
 
-redfish 에서 vendor 별 vault 를 동적으로 로딩하려면:
+> Playbook 안에 자격증명을 평문으로 두지 않는다. `vars_files` 로 시크릿을 로딩하지 않는다.
+
+### Windows 전용 WinRM 옵션 (비-시크릿)
+
+WinRM 연결 옵션은 시크릿이 아니므로 playbook `vars` 블록에 그대로 둔다.
+
 ```yaml
-vars_files:
-  - "{{ lookup('env', 'REPO_ROOT') }}/vault/redfish/{{ hostvars[inventory_hostname]['vendor'] }}.yml"
+vars:
+  ansible_winrm_transport:              "ntlm"
+  ansible_winrm_server_cert_validation: "ignore"
+  ansible_port:                         5985
 ```
 
 ### 공통 변수 패턴
@@ -141,7 +189,7 @@ hosts: all
 
 ---
 
-## 4. 인벤토리 라우터
+## 5. 인벤토리 라우터
 
 인벤토리 스크립트(`my_inventory.sh`)는 라우터 역할만 한다.
 
@@ -188,41 +236,49 @@ _os_image:   "{{ hostvars[inventory_hostname]['os_image']   | default('') }}"
 
 ---
 
-## 5. 리팩토링 체크리스트
+## 6. 리팩토링 체크리스트
 
 AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한다.
 
 ### Jenkinsfile
 
 - [ ] `loc`, `target_type`, `inventory_json` 3개 파라미터가 있는가?
-- [ ] `loc`, `target_type` 의 `defaultValue` 가 빈 문자열인가? (테스트용 값 하드코딩 금지)
+- [ ] `loc`, `target_type` 의 `defaultValue` 가 빈 문자열인가?
 - [ ] `inventory_json` 의 `defaultValue` 가 `'[]'` 인가? (필드 스키마 박지 않기)
 - [ ] `agent` 라벨이 `"${params.loc} && ${params.target_type}"` 인가?
 - [ ] `environment` 에 `INVENTORY_JSON`, `TARGET_TYPE`, `REPO_ROOT` 가 있는가?
 - [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
-- [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가? (작업 저장소 기준 절대경로)
+- [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가?
 - [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
+- [ ] `withCredentials` 로 자격증명을 추출하는가? (target_type 에 맞는 ID 사용)
+- [ ] `extraVars` 의 모든 자격증명 항목에 `hidden: true` 가 붙어 있는가?
+- [ ] linux 면 `ansible_become_password` 도 함께 주입했는가?
+- [ ] redfish 면 vendor 별 credential ID 를 동적으로 선택하는가?
 
 ### Playbook
 
 - [ ] `hosts: all` 인가?
 - [ ] `connection` 이 target_type 에 맞는가? (ssh / winrm / local)
-- [ ] `vars_files` 로 vault 를 올바르게 참조하는가? (redfish 는 vendor 별 분기)
-- [ ] `_host`, `_ip` 공통 변수를 사용하는가?
-- [ ] 포털이 보낼지 보장 안 되는 필드에 `| default('')` 를 붙였는가?
+- [ ] linux 면 sudo 필요한 task 에 `become: true` 가 있는가?
+- [ ] windows 면 WinRM 옵션(`ansible_winrm_transport` 등)이 `vars` 에 있는가?
+- [ ] `_host`, `_ip` 공통 변수를 사용하는가? (생략 가능, 권장)
+- [ ] 포털이 보낼지 보장 안 되는 hostvars 필드에 `| default('')` 를 붙였는가?
 - [ ] `changed_when: false` 로 읽기 전용 태스크를 표시했는가?
 - [ ] hostvars 를 소비만 하는가? (setting/mutating 금지)
+- [ ] **자격증명을 playbook 안에 평문으로 두지 않았는가?** (Jenkins Credentials → extraVars 경유만)
+- [ ] **`vars_files` 로 vault 를 로딩하지 않는가?** (시크릿은 Jenkins Credentials 만 사용)
 - [ ] block/rescue 로 실패 처리를 했는가? (선택)
 
 ---
 
-## 6. AI 에게 요청하는 방법
+## 7. AI 에게 요청하는 방법
 
 ### 기존 파일 리팩토링
 
 ```
 아래 Jenkinsfile 과 Playbook 을 이 프로젝트 컨벤션에 맞게 리팩토링해줘.
-GUIDE_FOR_AI.md 를 참고해서 파라미터, 환경변수, vault, inventory 를 맞춰줘.
+GUIDE_FOR_AI.md 를 참고해서 파라미터, 환경변수, Jenkins Credentials, inventory 를 맞춰줘.
+시크릿은 vault 가 아니라 withCredentials + extraVars 로 주입해야 한다.
 
 [기존 Jenkinsfile 붙여넣기]
 [기존 Playbook 붙여넣기]
@@ -247,16 +303,17 @@ bmc_ip, service_ip, hostname, vendor, gateway, netmask, dns_servers, os_image, b
 
 ---
 
-## 7. 부하 테스트
+## 8. 부하 테스트
 
 Jenkins/Ansible 부하 테스트는 별도 레포에서 관리합니다.
 이 repo 에는 부하 테스트 코드가 없습니다.
 
 ---
 
-## 8. 상세 가이드
+## 9. 상세 가이드
 
 더 자세한 내용은 아래 문서를 참조한다.
 
 - **Jenkinsfile 상세**: `docs/jenkinsfile-guide.md`
 - **Playbook 상세**: `docs/playbook-guide.md`
+- **ansible.cfg 표준**: `docs/ansible-cfg-guide.md`

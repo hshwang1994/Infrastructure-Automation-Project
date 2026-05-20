@@ -30,16 +30,29 @@ pipeline {
     stages {
         stage('Run Ansible') {
             steps {
-                ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-                    colorized   : true
-                )
+                withCredentials([
+                    string(credentialsId: 'ansible-infra-user', variable: 'ANSIBLE_REMOTE_USER'),
+                    string(credentialsId: 'ansible-infra-pass', variable: 'ANSIBLE_REMOTE_PASS')
+                ]) {
+                    ansiblePlaybook(
+                        installation: 'ansible',
+                        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+                        extraVars   : [
+                            ansible_user           : [value: "${ANSIBLE_REMOTE_USER}", hidden: true],
+                            ansible_password       : [value: "${ANSIBLE_REMOTE_PASS}", hidden: true],
+                            ansible_become_password: [value: "${ANSIBLE_REMOTE_PASS}", hidden: true]
+                        ],
+                        colorized: true
+                    )
+                }
             }
         }
     }
 }
 ```
+
+> 위 예시는 **linux / windows 공용 계정 (`infra` / `infra1234`)** 기준이다.
+> ESXi / Redfish 는 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션의 별도 ID 표 참고.
 
 ## 예약 파라미터 (3개 필수)
 
@@ -48,6 +61,115 @@ pipeline {
 | `loc` | string | 포털이 전달하는 Agent 위치 (ich \| chj \| yi) |
 | `target_type` | string | 포털이 전달하는 대상 종류 (linux \| windows \| esxi \| redfish) |
 | `inventory_json` | text | 포털이 전달하는 타겟 호스트 JSON 배열 |
+
+## Jenkins Credentials (자격증명 주입)
+
+서버 접속 계정은 **vault 파일이 아니라 Jenkins Credentials 에 저장**하고, `withCredentials` → `ansiblePlaybook(extraVars: ...)` 로 playbook 에 주입한다. `extraVars` 의 `hidden: true` 옵션이 콘솔 로그에서 값을 마스킹한다.
+
+### 등록 절차
+
+Jenkins → Manage Jenkins → Credentials → System → Global credentials → Add Credentials
+
+- **Kind**: `Secret text`
+- **Secret**: 실제 값 (사용자명 또는 비밀번호)
+- **ID**: 아래 표의 ID 그대로 입력
+
+### Credential ID 표준
+
+**linux / windows 공용 (현재 사양: `infra` / `infra1234`)**
+
+| Credential ID | 종류 | 값 | 매핑되는 ansible 변수 |
+|---|---|---|---|
+| `ansible-infra-user` | Secret Text | `infra` | `ansible_user` |
+| `ansible-infra-pass` | Secret Text | `infra1234` | `ansible_password`, `ansible_become_password` |
+
+**ESXi (별도 ID 필요)**
+
+| Credential ID | 종류 | 매핑되는 ansible 변수 |
+|---|---|---|
+| `ansible-esxi-user` | Secret Text | `ansible_user` |
+| `ansible-esxi-pass` | Secret Text | `ansible_password` |
+
+**Redfish (vendor 별 분리)**
+
+| Credential ID | 종류 | 매핑되는 ansible 변수 |
+|---|---|---|
+| `ansible-redfish-dell-user` / `ansible-redfish-dell-pass` | Secret Text | iDRAC 계정 |
+| `ansible-redfish-hpe-user` / `ansible-redfish-hpe-pass` | Secret Text | iLO 계정 |
+| `ansible-redfish-lenovo-user` / `ansible-redfish-lenovo-pass` | Secret Text | XCC 계정 |
+| `ansible-redfish-supermicro-user` / `ansible-redfish-supermicro-pass` | Secret Text | SMC IPMI 계정 |
+
+### target_type 별 withCredentials 패턴
+
+**linux** (sudo become 포함):
+```groovy
+withCredentials([
+    string(credentialsId: 'ansible-infra-user', variable: 'U'),
+    string(credentialsId: 'ansible-infra-pass', variable: 'P')
+]) {
+    ansiblePlaybook(
+        installation: 'ansible',
+        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+        extraVars   : [
+            ansible_user           : [value: "${U}", hidden: true],
+            ansible_password       : [value: "${P}", hidden: true],
+            ansible_become_password: [value: "${P}", hidden: true]
+        ],
+        colorized: true
+    )
+}
+```
+
+**windows** (WinRM, become 없음):
+```groovy
+withCredentials([
+    string(credentialsId: 'ansible-infra-user', variable: 'U'),
+    string(credentialsId: 'ansible-infra-pass', variable: 'P')
+]) {
+    ansiblePlaybook(
+        installation: 'ansible',
+        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+        extraVars   : [
+            ansible_user    : [value: "${U}", hidden: true],
+            ansible_password: [value: "${P}", hidden: true]
+        ],
+        colorized: true
+    )
+}
+```
+
+> WinRM 연결 옵션(`ansible_connection`, `ansible_winrm_transport` 등)은 playbook 의 `vars` 블록에 넣는다 ([`playbook-guide.md`](./playbook-guide.md) 의 windows 예시 참고). 시크릿이 아니므로 코드에 두어도 무방.
+
+**redfish** (vendor 별 credential 선택):
+```groovy
+script {
+    def vendor = '...'   // 포털 입력 또는 inventory_json 의 vendor 필드에서 추출
+    withCredentials([
+        string(credentialsId: "ansible-redfish-${vendor}-user", variable: 'U'),
+        string(credentialsId: "ansible-redfish-${vendor}-pass", variable: 'P')
+    ]) {
+        ansiblePlaybook(
+            installation: 'ansible',
+            playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+            extraVars   : [
+                ansible_user    : [value: "${U}", hidden: true],
+                ansible_password: [value: "${P}", hidden: true]
+            ],
+            colorized: true
+        )
+    }
+}
+```
+
+> Redfish 는 한 번에 한 vendor 만 처리한다는 전제. 여러 vendor 가 섞이면 vendor 별 stage 분리 권장.
+
+### 마스킹 검증
+
+`hidden: true` 가 적용되면 Jenkins 콘솔에 다음처럼 표시된다:
+```
+ansible-playbook ... -e ansible_user=**** -e ansible_password=****
+```
+실제 값이 노출되면 `extraVars` 의 `hidden` 설정이 누락된 것이다.
 
 ## inventory_json 구조
 
@@ -111,15 +233,17 @@ Jenkinsfile `defaultValue` 는 빈 배열(`[]`) 이고, 필드 스키마는 포�
 
 ## REPO_ROOT 환경변수
 
-`REPO_ROOT = "${WORKSPACE}"` 로 선언하면 `site.yml` 에서 vault 경로를 아래처럼 참조할 수 있다.
+`REPO_ROOT = "${WORKSPACE}"` 로 선언하면 playbook 에서 작업 저장소 루트 기준 상대경로를 안전하게 잡을 수 있다 (역할 파일, 템플릿, 스크립트 등).
 
 ```yaml
-vars_files:
-  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+- ansible.builtin.copy:
+    src: "{{ lookup('env', 'REPO_ROOT') }}/scripts/sample.sh"
+    dest: /tmp/sample.sh
 ```
 
-`WORKSPACE` 는 Jenkins 런타임 변수라 `/etc/ansible/ansible.cfg` 에 넣을 수 없으므로
-Jenkinsfile `environment` 블록에서 선언한다.
+`WORKSPACE` 는 Jenkins 런타임 변수라 `/etc/ansible/ansible.cfg` 에 넣을 수 없으므로 Jenkinsfile `environment` 블록에서 선언한다.
+
+> 자격증명은 `REPO_ROOT` 경로의 vault 가 아니라 Jenkins Credentials 에서 주입한다. 위 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션 참고.
 
 ## 인벤토리 설정
 
