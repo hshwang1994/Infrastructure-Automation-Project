@@ -8,6 +8,17 @@ Jenkinsfile 에서 `inventory` 파라미터를 생략할 수 있다.
 
 ## 배치 절차
 
+### 0. 시스템 의존성
+
+password 기반 SSH 와 sudo 를 ansible 이 처리하려면 `sshpass` 가 필요하다. 미설치 시 `[ERROR]: A worker was found in a dead state` 로 실패한다.
+
+```bash
+sudo apt-get install -y sshpass
+which sshpass   # /usr/bin/sshpass
+```
+
+> Ansible-core 2.20.3 에서 확인: vault/SSH password 가 모두 vault 경유로 들어와도, 내부적으로 sshpass 를 호출하므로 필수다.
+
 ### 1. Agent 에 스크립트 복사
 
 Git 에서 원본을 가져와 Agent 에 배치한다.
