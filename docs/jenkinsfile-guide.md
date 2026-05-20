@@ -30,30 +30,21 @@ pipeline {
     stages {
         stage('Run Ansible') {
             steps {
-                withCredentials([
-                    string(credentialsId: "ansible-${params.target_type}-user", variable: 'ANSIBLE_REMOTE_USER'),
-                    string(credentialsId: "ansible-${params.target_type}-pass", variable: 'ANSIBLE_REMOTE_PASS')
-                ]) {
-                    ansiblePlaybook(
-                        installation: 'ansible',
-                        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-                        extraVars   : [
-                            ansible_user           : [value: "${ANSIBLE_REMOTE_USER}", hidden: true],
-                            ansible_password       : [value: "${ANSIBLE_REMOTE_PASS}", hidden: true],
-                            ansible_become_password: [value: "${ANSIBLE_REMOTE_PASS}", hidden: true]
-                        ],
-                        colorized: true
-                    )
-                }
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/{작업경로}/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
             }
         }
     }
 }
 ```
 
-> `credentialsId` 가 `params.target_type` 으로 동적 선택된다 — `ansible-linux-*`, `ansible-windows-*`, `ansible-esxi-*`, `ansible-redfish-*`.
-> `ansible_become_password` 는 linux 외 target_type 에서는 사용되지 않지만 extra 로 넘겨도 무해하므로 모든 타입에 동일하게 주입한다.
-> 자격증명 ID 와 값 표준은 아래 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션 참고.
+> `vaultCredentialsId` 가 Jenkins Credential `ansible-vault-password` (Secret Text) 의 값을 ansible-playbook 의 vault 비밀번호로 전달한다.
+> playbook 이 `vars_files` 로 `vault/{target_type}.yml` 을 로딩하면 ansible 이 런타임에 자동 복호화한다.
+> 자세한 설정·credentials 디렉토리 워크플로우는 아래 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션 참고.
 
 ## 예약 파라미터 (3개 필수)
 
@@ -65,68 +56,73 @@ pipeline {
 
 ## Jenkins Credentials (자격증명 주입)
 
-서버 접속 계정은 **vault 파일이 아니라 Jenkins Credentials 에 저장**하고, `withCredentials` → `ansiblePlaybook(extraVars: ...)` 로 playbook 에 주입한다. `extraVars` 의 `hidden: true` 옵션이 콘솔 로그에서 값을 마스킹한다.
+서버 접속 계정은 **ansible-vault 로 암호화된 파일** 로 repo 에 commit 하고, **vault 복호화 비밀번호만 Jenkins Credentials** 에 보관한다. ansible-playbook 이 런타임에 자동 복호화한다.
 
-### 등록 절차
+### 데이터 흐름
 
-Jenkins → Manage Jenkins → Credentials → System → Global credentials → Add Credentials
+```
+credentials/{type}.yml     (평문 원본 — 사람이 편집)
+        ↓ scripts/encrypt-vault.sh
+vault/{type}.yml           (ansible-vault 암호화 — repo 에 commit)
+        ↓ Jenkins 빌드 시
+Jenkins Credential
+  - id: ansible-vault-password   (Secret Text)
+  - value: vault 비밀번호
+        ↓ ansiblePlaybook(vaultCredentialsId: 'ansible-vault-password')
+ansible-playbook 실행
+        ↓ playbook 의 vars_files 가 vault/{type}.yml 로딩 시 자동 복호화
+ansible_user / ansible_password 가 변수로 사용됨
+```
 
-- **Kind**: `Secret text`
-- **Secret**: 실제 값 (사용자명 또는 비밀번호)
-- **ID**: 아래 표의 ID 그대로 입력
+### Jenkins 측 등록 (1회)
 
-### Credential ID 표준
+Manage Jenkins → Credentials → System → Global credentials → Add Credentials
 
-**ID 네이밍 규칙:** `ansible-{target_type}-user` / `ansible-{target_type}-pass`
+| 항목 | 값 |
+|------|-----|
+| Kind | **Secret text** |
+| Secret | vault 비밀번호 (encrypt 시 입력했던 그 값) |
+| ID | **`ansible-vault-password`** |
 
-target_type 별로 **별도 ID** 를 유지한다 (운영 단계에서 계정 분리가 필요하기 때문). 현재는 사내 테스트 단계라 **모든 값을 `infra` / `infra1234` 로 통일**해 두지만, 향후 각 target_type 별 실제 운영 계정으로 교체될 수 있다.
-
-| Credential ID | 종류 | 현재 값 | 향후 교체 예시 |
-|---|---|---|---|
-| `ansible-linux-user` / `ansible-linux-pass` | Secret Text | `infra` / `infra1234` | 운영 SSH 계정 |
-| `ansible-windows-user` / `ansible-windows-pass` | Secret Text | `infra` / `infra1234` | 운영 도메인 계정 |
-| `ansible-esxi-user` / `ansible-esxi-pass` | Secret Text | `infra` / `infra1234` | `root` 등 ESXi 계정 |
-| `ansible-redfish-user` / `ansible-redfish-pass` | Secret Text | `infra` / `infra1234` | iDRAC / iLO 등 BMC 계정 |
-
-각 `-user` 는 `ansible_user`, `-pass` 는 `ansible_password` (linux 는 추가로 `ansible_become_password`) 에 매핑된다.
-
-> Redfish 는 현재 단일 ID 로 통일. 향후 vendor 별 계정 분리가 필요해지면 `ansible-redfish-{vendor}-user` 형태로 분기하고, Jenkinsfile 의 `credentialsId` 식을 `"ansible-redfish-${vendor}-user"` 로 바꾼다.
+> 이 ID 가 Jenkinsfile 의 `vaultCredentialsId` 와 정확히 일치해야 한다.
+> 모든 target_type 이 동일한 vault 비밀번호를 공유한다 (현재 단순화 정책).
 
 ### Jenkinsfile 표준 패턴 (모든 target_type 공통)
-
-`credentialsId` 가 `params.target_type` 으로 동적 선택되므로 **target_type 별 분기가 필요 없다.** 단일 stage 로 4가지 모두 처리 가능.
 
 ```groovy
 stage('Run Ansible') {
     steps {
-        withCredentials([
-            string(credentialsId: "ansible-${params.target_type}-user", variable: 'U'),
-            string(credentialsId: "ansible-${params.target_type}-pass", variable: 'P')
-        ]) {
-            ansiblePlaybook(
-                installation: 'ansible',
-                playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-                extraVars   : [
-                    ansible_user           : [value: "${U}", hidden: true],
-                    ansible_password       : [value: "${P}", hidden: true],
-                    ansible_become_password: [value: "${P}", hidden: true]   // linux 외에는 사용 안 되지만 무해
-                ],
-                colorized: true
-            )
-        }
+        ansiblePlaybook(
+            installation      : 'ansible',
+            playbook          : "${WORKSPACE}/{작업경로}/site.yml",
+            vaultCredentialsId: 'ansible-vault-password',
+            colorized         : true
+        )
     }
 }
 ```
 
-> WinRM 연결 옵션(`ansible_winrm_transport` 등)은 시크릿이 아니므로 playbook 의 `vars` 블록에 둔다 ([`playbook-guide.md`](./playbook-guide.md) 의 windows 예시 참고).
+- 따로 `withCredentials` 블록 / `extraVars` 가공이 필요 없다.
+- `credentialsId` 와 달리 `vaultCredentialsId` 는 Secret Text 를 받아 vault 비밀번호로 사용한다.
+- target_type 별 분기 불필요 — playbook 이 `vars_files` 로 자기에게 맞는 vault 파일을 로딩하면 됨.
 
-### 마스킹 검증
+### Playbook 측 vault 로딩
 
-`hidden: true` 가 적용되면 Jenkins 콘솔에 다음처럼 표시된다:
+```yaml
+vars_files:
+  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"     # linux 작업
+  # 또는
+  - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"   # windows 작업
+  # 등등
 ```
-ansible-playbook ... -e ansible_user=**** -e ansible_password=****
-```
-실제 값이 노출되면 `extraVars` 의 `hidden` 설정이 누락된 것이다.
+
+복호화된 vault 내용이 즉시 `ansible_user`, `ansible_password` 변수로 노출. WinRM 의 `ansible_winrm_transport` 같은 비-시크릿 옵션은 vault 가 아니라 playbook `vars` 블록에 둔다.
+
+### credentials/ 디렉토리 운영
+
+- 평문 자격증명 편집 → `./scripts/encrypt-vault.sh` 실행 → `vault/*.yml` 갱신 → 둘 다 commit
+- 자세한 워크플로우는 [`../credentials/README.md`](../credentials/README.md) 참고
+- 운영 이행 시에는 `credentials/` 를 `.gitignore` 처리해 vault 만 공유하는 것도 가능
 
 ## inventory_json 구조
 

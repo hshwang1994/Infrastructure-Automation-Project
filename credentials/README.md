@@ -1,47 +1,54 @@
-# 계정 관리 디렉토리 (Jenkins Credentials 원본)
+# credentials/ — 평문 자격증명 원본
 
-이 디렉토리는 **Jenkins Credentials 에 등록되어야 할 자격증명의 원본 정의서**를 보관합니다.
+이 디렉토리는 **ansible-vault 로 암호화되기 전의 평문 원본** 을 보관합니다.
 
-## 역할
+## 디렉토리 역할
 
-- Jenkins UI 에서 자격증명을 등록할 때 참조할 **단일 소스 (source of truth)**
-- 어떤 target_type 에 어떤 계정이 매핑되는지 추적
-- 운영 이행 시 값만 교체하면 됨 (코드 수정 불필요)
-
-> 이 파일들 자체로 인증이 일어나는 게 아닙니다. 실제 인증은 Jenkins 가 보관 중인 Credential 로만 수행합니다.
-> 이 디렉토리는 "Jenkins 에 무엇을 등록해야 하는가" 를 사람과 AI 가 추적하기 위한 명세입니다.
+- 사람이 직접 편집하는 평문 YAML
+- `scripts/encrypt-vault.sh` 가 이 파일들을 ansible-vault 로 암호화해서 `../vault/` 에 출력
+- 실행 중 Ansible 이 읽는 파일은 `vault/*.yml` 이지 이 디렉토리가 아님
 
 ## 파일 목록
 
-| 파일 | 대응 target_type | Jenkins 등록 |
-|------|-----------------|------------|
-| `linux.yml` | linux | `ansible-linux-*` |
-| `windows.yml` | windows | `ansible-windows-*` |
-| `esxi.yml` | esxi | `ansible-esxi-*` |
-| `redfish.yml` | redfish | `ansible-redfish-*` |
+| 파일 | target_type | 출력 (암호화) |
+|------|------------|-------------|
+| `linux.yml` | linux | `../vault/linux.yml` |
+| `windows.yml` | windows | `../vault/windows.yml` |
+| `esxi.yml` | esxi | `../vault/esxi.yml` |
+| `redfish.yml` | redfish | `../vault/redfish.yml` |
 
-Jenkins Credential ID 매핑과 등록 절차는 [`../docs/jenkinsfile-guide.md`](../docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+각 파일은 `ansible_user` / `ansible_password` (linux 는 추가로 `ansible_become_password`) 만 담는다. 비-시크릿 옵션(예: WinRM `ansible_winrm_transport`) 은 vault 가 아니라 playbook `vars` 에 둔다.
 
-## 등록 흐름
+## 워크플로우
 
 ```
-credentials/{type}.yml  (이 파일들)
-        ↓ 참고
-Jenkins UI → Manage Jenkins → Credentials → Add Credentials
-        ↓ 등록됨
-ansiblePlaybook(credentialsId: 'ansible-{type}-...')
-        ↓ 사용됨
-실제 Ansible 인증
+1. credentials/linux.yml 값 편집 (사람)
+            ↓
+2. scripts/encrypt-vault.sh 실행 (vault 비밀번호 입력)
+            ↓
+3. vault/linux.yml 생성/갱신 (ansible-vault 암호화)
+            ↓
+4. git commit (credentials/ 과 vault/ 둘 다)
+            ↓
+5. Jenkins 빌드 시 Jenkins Credential 'ansible-vault-password' 로 복호화
+            ↓
+6. playbook 이 ansible_user / ansible_password 변수 사용
 ```
 
-## 값 교체 절차 (사내 테스트 → 운영 이행)
+## Jenkins 측 설정 (1회)
 
-1. 이 디렉토리의 해당 yml 파일에서 `username` / `password` 값 갱신
-2. Jenkins UI 에서 같은 ID 의 Credential 을 같은 새 값으로 업데이트
-3. 코드(Jenkinsfile / Playbook) 는 수정 없음 — `credentialsId` 만 참조하므로 그대로 동작
-4. 새 값으로 테스트 1회 후 정상이면 완료
+Manage Jenkins → Credentials → Global → Add Credentials:
 
-## 주의
+| 항목 | 값 |
+|------|-----|
+| Kind | Secret text |
+| Secret | 위 워크플로우 2번에서 입력한 vault 비밀번호 |
+| ID | `ansible-vault-password` |
 
-- 사내 테스트 단계라 평문으로 둡니다. 운영 환경 이행 시 별도 비밀 관리(예: HashiCorp Vault, AWS Secrets Manager 등)로 이동을 고려하세요.
-- 운영 자격증명을 이 디렉토리에 평문으로 둘 경우 저장소 접근 통제와 별도 암호화 검토가 필요합니다.
+> **이 ID 가 Jenkinsfile 의 `vaultCredentialsId` 와 정확히 일치해야 한다.**
+
+## 운영 이행 시 주의
+
+- 운영 자격증명을 평문으로 commit 하고 싶지 않으면 `credentials/*.yml` 을 `.gitignore` 에 추가하고 `vault/*.yml` 만 commit 한다.
+- 그러면 자격증명을 아는 사람만 로컬에서 `scripts/decrypt-vault.sh` 로 복호화 가능.
+- 현재 사내 테스트 단계라 두 디렉토리 모두 commit 유지.

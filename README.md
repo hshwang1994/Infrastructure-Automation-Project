@@ -1,6 +1,6 @@
 # Automation Standards Guide
 
-> Jenkins + Ansible 자동화 작업을 우리 환경(공통 인벤토리 스크립트 + 공용 Jenkins Agent + Jenkins Credentials)에 맞춰 어떻게 작성해야 하는지 정리한 **표준 가이드 저장소**입니다.
+> Jenkins + Ansible 자동화 작업을 우리 환경(공통 인벤토리 스크립트 + 공용 Jenkins Agent + ansible-vault)에 맞춰 어떻게 작성해야 하는지 정리한 **표준 가이드 저장소**입니다.
 > 실제 운영 Playbook 코드는 이 저장소에 두지 않습니다.
 
 ## 이 저장소의 역할
@@ -8,7 +8,7 @@
 이 저장소는 **무엇을 작성할지가 아니라, 어떻게 작성할지**를 정의합니다.
 
 - 새 Jenkins Job / Ansible Playbook 을 만들 때 따라야 할 **컨벤션**
-- 우리 환경(`inventory/my_inventory.sh`, 공용 Agent, Jenkins Credentials)에 **어떻게 연결**해야 하는지
+- 우리 환경(`inventory/my_inventory.sh`, 공용 Agent, ansible-vault + Jenkins Credentials)에 **어떻게 연결**해야 하는지
 - AI 가 컨벤션에 맞게 코드를 생성하도록 돕는 **컨텍스트 입력**
 
 실제 운영 Playbook 은 별도의 작업 저장소에 위치합니다.
@@ -24,12 +24,12 @@
     Jenkins Job (이 가이드 표준 준수)
     ├─ 파라미터 수신 (loc, target_type, inventory_json)
     ├─ 환경변수 설정 (INVENTORY_JSON, TARGET_TYPE, REPO_ROOT)
-    ├─ withCredentials → Jenkins Credentials 에서 계정 추출
-    └─ ansiblePlaybook(extraVars: ansible_user/password — hidden) 실행
+    └─ ansiblePlaybook(vaultCredentialsId: 'ansible-vault-password') 실행
          ↓
     Ansible
     ├─ inventory/my_inventory.sh → 동적 인벤토리 생성
-    ├─ extraVars 로 주입된 ansible_user / password 로 인증
+    ├─ playbook 의 vars_files 가 vault/{type}.yml 로딩 시 자동 복호화
+    │  → ansible_user / ansible_password 변수 노출
     └─ playbook 실행 → 결과 출력
 ```
 
@@ -43,17 +43,21 @@ automation-standards-guide/
 │   └── playbook-guide.md          ← Playbook 작성 표준
 ├── inventory/
 │   └── my_inventory.sh            ← 모든 작업이 공통으로 쓰는 동적 인벤토리 스크립트
-├── credentials/                   ← Jenkins Credentials 원본 정의서 (Source of Truth)
+├── credentials/                   ← 평문 자격증명 원본 (사람이 편집)
 │   ├── README.md
-│   ├── linux.yml
-│   ├── windows.yml
-│   ├── esxi.yml
-│   └── redfish.yml
+│   ├── linux.yml / windows.yml / esxi.yml / redfish.yml
+├── vault/                         ← ansible-vault 로 암호화된 결과 (런타임 사용)
+│   ├── README.md
+│   └── (encrypt-vault.sh 실행 후 생성됨)
+├── scripts/
+│   ├── encrypt-vault.sh           ← credentials/ → vault/ 일괄 암호화
+│   └── decrypt-vault.sh           ← vault/ → credentials/ 일괄 복호화 (디버그용)
 └── GUIDE_FOR_AI.md                ← AI 자동 생성용 컨텍스트
 ```
 
-> 실제 인증은 **Jenkins Credentials** (Manage Jenkins → Credentials → Global) 가 수행합니다.
-> `credentials/` 디렉토리는 "Jenkins 에 어떤 ID 로 어떤 값을 등록해야 하는가" 를 추적하는 명세서일 뿐, 그 자체로 인증이 일어나지는 않습니다. 자세한 사용법은 `credentials/README.md` 참고.
+> 실제 인증은 **ansible-vault 로 암호화된 vault/{type}.yml 을 ansible-playbook 이 런타임에 복호화** 해서 수행합니다.
+> Jenkins Credentials 에는 **vault 복호화 비밀번호 하나만** (Secret Text `ansible-vault-password`) 보관합니다.
+> 사용 흐름은 `credentials/README.md` 참고.
 
 ## 새 작업 추가 시 따라야 할 흐름
 

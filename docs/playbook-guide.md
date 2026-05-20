@@ -2,17 +2,19 @@
 
 ## 0. 역할 분리 (먼저 읽기)
 
-이 프로젝트의 Ansible 호출은 네 계층으로 책임이 나뉜다.
+이 프로젝트의 Ansible 호출은 다섯 계층으로 책임이 나뉜다.
 
 | 계층 | 책임 | 산출물 |
 |------|------|--------|
-| Jenkins Credentials | 서버 접속 계정 보관 | `ansible-{target_type}-user` / `-pass` Secret Text 4쌍 |
-| Jenkinsfile | 파라미터 수신, Credentials 추출 → `extraVars` 로 주입, 환경변수 노출 | `ansiblePlaybook` 호출 |
+| `credentials/{type}.yml` | 사람이 편집하는 평문 자격증명 | ansible_user / ansible_password / (linux) ansible_become_password |
+| `vault/{type}.yml` | 위를 ansible-vault 로 암호화한 결과 (repo 에 commit) | 암호화 YAML |
+| Jenkins Credentials | vault 복호화 비밀번호 보관 | Secret Text `ansible-vault-password` 단 1개 |
+| Jenkinsfile | `vaultCredentialsId` 로 vault 비밀번호 전달 | `ansiblePlaybook` 호출 |
 | `inventory/my_inventory.sh` | 환경변수 → Ansible 인벤토리 JSON 변환 (라우터) | `inventory_hostname`, `ansible_host`, `hostvars` |
-| **Playbook** | **위에서 만들어진 `hostvars` + 주입된 자격증명을 읽기만 함** | 실제 작업 수행 |
+| **Playbook** | **위에서 만들어진 hostvars + vault 에서 복호화된 자격증명을 읽기만 함** | 실제 작업 수행 |
 
 > Playbook 은 hostvars 와 `ansible_user` / `ansible_password` 를 **소비만 한다.**
-> hostvars 의 구조는 `my_inventory.sh` 가, 자격증명은 Jenkins Credentials 가 결정한다.
+> hostvars 의 구조는 `my_inventory.sh` 가, 자격증명은 vault 가 결정한다.
 > Playbook 안에 시크릿을 평문으로 두지 않는다.
 
 ---
@@ -25,6 +27,9 @@
   gather_facts: true   # linux/windows/esxi 운영 작업: true / OS 설치 전: false / redfish: false
   connection: ssh      # ssh / winrm / local
 
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/{타입}.yml"     # 시크릿 (ansible-vault 로 자동 복호화)
+
   vars:
     _host: "{{ inventory_hostname }}"
     _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] | default(inventory_hostname) }}"
@@ -34,21 +39,21 @@
 ```
 
 - `hosts: all` 고정. `my_inventory.sh` 가 모든 호스트를 `all` 그룹으로만 출력한다.
-- `vars_files` 는 **선택 사항이며 시크릿 용도로는 사용하지 않는다**. 자격증명은 Jenkinsfile 이 `extraVars` 로 주입한다.
-- `vars` 블록의 `_host` / `_ip` 도 권장이지 필수는 아니다. 디버그 플레이북처럼 단순하면 생략 가능 (§3-4 참고).
+- `vars_files` 는 **시크릿 (vault) 로딩 용도**. ansible-playbook 이 `vaultCredentialsId` 로 받은 비밀번호로 자동 복호화한다.
+- `vars` 블록의 `_host` / `_ip` 는 로그 일관성용 권장 패턴 (선택).
 
 ---
 
 ## 2. target_type 별 설정 기준
 
-| target_type | connection | gather_facts | become | 사용 Jenkins Credentials |
-|------------|-----------|--------------|--------|------------------------|
-| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-linux-user` / `ansible-linux-pass` |
-| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-windows-user` / `ansible-windows-pass` |
-| esxi | ssh | true (운영) / false (OS 설치 전) | no | `ansible-esxi-user` / `ansible-esxi-pass` |
-| redfish | local | false (BMC 접속, OS Fact 수집 불가) | no | `ansible-redfish-user` / `ansible-redfish-pass` |
+| target_type | connection | gather_facts | become | vault 파일 |
+|------------|-----------|--------------|--------|-----------|
+| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `vault/linux.yml` |
+| windows | winrm | true (운영) / false (OS 설치 전) | no | `vault/windows.yml` |
+| esxi | ssh | true (운영) / false (OS 설치 전) | no | `vault/esxi.yml` |
+| redfish | local | false (BMC 접속, OS Fact 수집 불가) | no | `vault/redfish.yml` |
 
-ID 패턴은 `ansible-{target_type}-user` / `ansible-{target_type}-pass` 로 통일. 현재 값은 모두 `infra` / `infra1234` (사내 테스트). 자격증명 ID 표와 동적 선택 패턴은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+vault 파일은 `ansible-vault encrypt` 로 생성된 암호화 YAML. 평문 원본은 `credentials/{type}.yml`. 자세한 흐름은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
 
 ---
 
@@ -178,10 +183,13 @@ ID 패턴은 `ansible-{target_type}-user` / `ansible-{target_type}-pass` 로 통
 
 ## 5. 자격증명 참조 패턴
 
-Jenkinsfile 이 `extraVars` 로 `ansible_user`, `ansible_password`, `ansible_become_password` 를 주입한다. Playbook 은 변수처럼 사용한다.
+playbook 이 `vars_files` 로 `vault/{target_type}.yml` 을 로딩하면 ansible 이 vault 비밀번호로 자동 복호화하고, 그 안의 `ansible_user` / `ansible_password` / (linux 면) `ansible_become_password` 가 변수로 노출된다.
 
 ```yaml
-# linux/windows/esxi — connection 이 ssh/winrm 이면 ansible 이 자동 사용 (직접 참조 불필요)
+vars_files:
+  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+# linux/windows/esxi — connection 이 ssh/winrm 이면 ansible 이 ansible_user/ansible_password 를 자동 사용
 become: true   # linux 만, sudo 필요한 task
 
 # redfish — uri 모듈 등에서 명시적으로 참조
@@ -191,8 +199,8 @@ become: true   # linux 만, sudo 필요한 task
     password: "{{ ansible_password }}"
 ```
 
-> Jenkinsfile 에서 자격증명을 주입하지 않으면 ansible 실행 시 `MissingArgument` 또는 SSH 인증 실패가 발생한다.
-> 플레이북을 직접 (Jenkins 없이) 돌릴 때는 `ansible-playbook -e ansible_user=... -e ansible_password=...` 로 같은 값을 넘긴다.
+> vault 비밀번호는 Jenkinsfile 의 `vaultCredentialsId: 'ansible-vault-password'` 가 자동 전달한다.
+> 플레이북을 직접 (Jenkins 없이) 돌릴 때는 `ansible-playbook --ask-vault-pass` 또는 `--vault-password-file <file>` 로 비밀번호를 넘긴다.
 
 ---
 
@@ -217,7 +225,10 @@ vars:
   hosts: all
   gather_facts: true
   connection: ssh
-  become: true            # sudo 필요한 task 가 있을 때
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
 
   vars:
     _host: "{{ inventory_hostname }}"
@@ -240,13 +251,13 @@ vars:
         msg: "[{{ _host }} / {{ _ip }}] {{ _tracking.stdout_lines }}"
 ```
 
-> `ansible_user`, `ansible_password`, `ansible_become_password` 는 Jenkinsfile 의 `extraVars` 로 주입된다. Playbook 안에 다시 선언하지 않는다.
+> `vault/linux.yml` 안에 `ansible_user`, `ansible_password`, `ansible_become_password` 가 들어 있고 ansible 이 자동 복호화 후 사용. Playbook 안에 다시 선언하지 않는다.
 
 ---
 
 ## 8. 예시 — windows 운영 작업 (서비스 상태 점검)
 
-WinRM 연결 옵션(non-secret)은 playbook `vars` 에 둔다. 자격증명은 Jenkinsfile 에서 주입.
+WinRM 연결 옵션(non-secret)은 playbook `vars` 에 두고, 자격증명은 vault 에서 로딩.
 
 ```yaml
 ---
@@ -255,12 +266,15 @@ WinRM 연결 옵션(non-secret)은 playbook `vars` 에 둔다. 자격증명은 J
   gather_facts: true
   connection: winrm
 
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
   vars:
     # WinRM 비-시크릿 설정 — 그대로 노출 가능
     ansible_winrm_transport:              "ntlm"
     ansible_winrm_server_cert_validation: "ignore"
     ansible_port:                         5985
-    # ansible_user / ansible_password 는 Jenkins extraVars 로 주입됨
+    # ansible_user / ansible_password 는 vault/windows.yml 에서 자동 로딩됨
 
     _host: "{{ inventory_hostname }}"
     _ip:   "{{ hostvars[inventory_hostname]['ansible_host'] }}"
@@ -299,6 +313,9 @@ Jenkinsfile 은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 redfish 패
   gather_facts: false
   connection: local
 
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/redfish.yml"
+
   vars:
     _bmc_ip:     "{{ inventory_hostname }}"
     _service_ip: "{{ hostvars[inventory_hostname]['service_ip'] | default('') }}"
@@ -330,8 +347,7 @@ Jenkinsfile 은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 redfish 패
     # ... 이후 vendor 별 실제 OS 설치 태스크 (dell / hpe / lenovo / supermicro)
 ```
 
-> Redfish 자격증명은 현재 `ansible-redfish-user` / `ansible-redfish-pass` 단일 ID 로 통일. Jenkinsfile 이 `params.target_type` 기준으로 자동 선택한다.
-> Playbook 은 vendor 분기 없이 `ansible_user` / `ansible_password` 만 그대로 참조한다.
+> Redfish 자격증명은 현재 모든 vendor 가 `vault/redfish.yml` 단일 파일을 공유. 운영에서 vendor 별 계정 분리가 필요해지면 `vault/redfish-{vendor}.yml` 로 분기 후 vendor 기준으로 `vars_files` 동적 선택.
 
 ---
 
@@ -341,9 +357,9 @@ Jenkinsfile 은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 redfish 패
 - [ ] `connection` 이 target_type 에 맞는가? (ssh / winrm / local)
 - [ ] linux 면 `become: true` 가 필요한 task 에 설정됐는가?
 - [ ] windows 면 WinRM 옵션(`ansible_winrm_transport` 등)이 `vars` 에 들어 있는가?
+- [ ] `vars_files` 로 `vault/{target_type}.yml` 을 로딩하는가?
 - [ ] `_host`, `_ip` 공통 변수를 선언하는가? (생략 가능, 권장)
 - [ ] 포털이 보낼지 보장 안 되는 hostvars 필드에 `| default('')` 를 붙였는가?
 - [ ] 읽기 전용 태스크에 `changed_when: false` 를 붙였는가?
 - [ ] hostvars 를 **소비만** 하는가? (setting/mutating 하지 않는가)
-- [ ] **자격증명을 playbook 안에 평문으로 두지 않았는가?** (Jenkins Credentials → `extraVars` 경유만 사용)
-- [ ] `vars_files` 로 vault 를 로딩하지 않는가? (시크릿은 Jenkins Credentials 만 사용)
+- [ ] **자격증명을 playbook 안에 평문으로 두지 않았는가?** (vault 만 사용)

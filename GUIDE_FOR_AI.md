@@ -14,46 +14,59 @@
 automation-standards-guide/
   inventory/
     my_inventory.sh        ← 동적 인벤토리 스크립트 (모든 작업에서 공통 사용)
-  credentials/             ← Jenkins Credentials 등록 전 원본 정의서 (값 추적용)
+  credentials/             ← 평문 자격증명 원본 (사람이 편집)
     README.md
     linux.yml / windows.yml / esxi.yml / redfish.yml
+  vault/                   ← ansible-vault 로 암호화된 자격증명 (런타임 사용)
+    README.md
+    (encrypt-vault.sh 실행 후 생성)
+  scripts/
+    encrypt-vault.sh       ← credentials/ → vault/ 일괄 암호화
+    decrypt-vault.sh       ← vault/ → credentials/ 일괄 복호화 (디버그용)
   docs/
     ansible-cfg-guide.md   ← ansible.cfg 표준
     jenkinsfile-guide.md   ← Jenkinsfile 작성 표준 (상세)
     playbook-guide.md      ← Playbook 작성 표준 (상세)
 ```
 
-> 실제 인증은 **Jenkins Credentials** 가 수행한다 (§2 참고).
-> `credentials/` 디렉토리는 등록 전 원본 값을 추적하는 명세서 (source of truth) — 실행 경로 아님.
+> credentials/ 평문 → encrypt-vault.sh → vault/ 암호화 → Jenkins 가 vaultCredentialsId 로 복호화 비번 전달 → ansible 이 런타임 복호화.
 > 작업 저장소 쪽의 Playbook 디렉터리 구조는 작업 저장소 README 에서 별도 정의한다.
 > 이 가이드는 **각 파일을 어떻게 작성할지**에만 책임을 진다.
 
 ---
 
-## 2. Jenkins Credentials (자격증명 보관소)
+## 2. 자격증명 보관 — ansible-vault + Jenkins Credentials
 
-서버 접속 계정은 **vault 파일이 아닌 Jenkins Credentials** 에 저장한다. Jenkinsfile 이 `withCredentials` 로 꺼내서 `ansiblePlaybook(extraVars: ...)` 로 playbook 에 주입한다. `hidden: true` 가 콘솔 마스킹을 보장.
+### 데이터 흐름
 
-### 표준 Credential ID
+```
+credentials/{type}.yml   (평문 원본, 사람이 편집)
+        ↓ scripts/encrypt-vault.sh
+vault/{type}.yml         (ansible-vault 암호화, repo 에 commit)
+        ↓ Jenkins 빌드 시 ansiblePlaybook(vaultCredentialsId: ...)
+Jenkins Credential 'ansible-vault-password' (Secret Text)
+        ↓ ansible-playbook 이 자동 복호화
+playbook 의 vars_files 로 로딩 → ansible_user / ansible_password 변수
+```
 
-**ID 네이밍 규칙:** `ansible-{target_type}-user` / `ansible-{target_type}-pass`
+### 핵심 원칙
 
-target_type 별로 별도 ID 를 유지한다. 현재 값은 모두 사내 테스트 계정 (`infra` / `infra1234`) 으로 통일하며, 향후 운영 환경에서 각 ID 의 값만 교체한다 — Jenkinsfile/playbook 은 변경 불필요.
+- **계정 값** 은 `credentials/{type}.yml` 에서 사람이 편집 → `vault/{type}.yml` 로 암호화돼 repo 에 commit
+- **Jenkins 가 보관하는 시크릿은 단 하나** — vault 복호화 비밀번호 (Secret Text `ansible-vault-password`)
+- target_type 별 vault 파일 분리: `vault/linux.yml`, `vault/windows.yml`, `vault/esxi.yml`, `vault/redfish.yml`
+- 모든 target_type 이 **같은 vault 비밀번호** 사용 (단순화)
 
-| ID | 종류 | 현재 값 |
-|---|---|---|
-| `ansible-linux-user` / `ansible-linux-pass` | Secret Text | `infra` / `infra1234` |
-| `ansible-windows-user` / `ansible-windows-pass` | Secret Text | `infra` / `infra1234` |
-| `ansible-esxi-user` / `ansible-esxi-pass` | Secret Text | `infra` / `infra1234` |
-| `ansible-redfish-user` / `ansible-redfish-pass` | Secret Text | `infra` / `infra1234` |
+### Jenkins Credentials 등록 (1회)
 
-매핑:
-- `-user` → `ansible_user`
-- `-pass` → `ansible_password` (linux 는 추가로 `ansible_become_password`)
+Manage Jenkins → Credentials → Global → Add Credentials
 
-Jenkinsfile 은 `params.target_type` 으로 ID 를 동적 선택하므로 target_type 별 분기 코드가 필요 없다. 자세한 패턴은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+| 항목 | 값 |
+|------|-----|
+| Kind | **Secret text** |
+| Secret | vault 비밀번호 (encrypt 시 입력한 그 값) |
+| ID | **`ansible-vault-password`** |
 
-> Redfish 는 단일 ID 통일. 향후 vendor 별 분리가 필요해지면 `ansible-redfish-{vendor}-*` 로 분기 추가.
+자세한 워크플로우와 Jenkinsfile/playbook 결합은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 및 [`credentials/README.md`](./credentials/README.md) 참고.
 
 ---
 
@@ -95,36 +108,27 @@ environment {
 }
 ```
 
-### ansiblePlaybook 호출 (withCredentials 필수)
+### ansiblePlaybook 호출 (vaultCredentialsId 사용)
 
 ```groovy
 stages {
     stage('Run Ansible') {
         steps {
-            withCredentials([
-                string(credentialsId: "ansible-${params.target_type}-user", variable: 'U'),
-                string(credentialsId: "ansible-${params.target_type}-pass", variable: 'P')
-            ]) {
-                ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-                    extraVars   : [
-                        ansible_user           : [value: "${U}", hidden: true],
-                        ansible_password       : [value: "${P}", hidden: true],
-                        ansible_become_password: [value: "${P}", hidden: true]   // linux 외에는 사용 안 되지만 무해
-                    ],
-                    colorized: true
-                )
-            }
+            ansiblePlaybook(
+                installation      : 'ansible',
+                playbook          : "${WORKSPACE}/{작업경로}/site.yml",
+                vaultCredentialsId: 'ansible-vault-password',
+                colorized         : true
+            )
         }
     }
 }
 ```
 
-> `credentialsId` 가 `params.target_type` 으로 동적 선택되므로 target_type 별 분기 코드가 필요 없다.
+> `vaultCredentialsId` 가 Jenkins Credential `ansible-vault-password` 의 값을 vault 비밀번호로 ansible-playbook 에 전달한다.
 > `installation: 'ansible'` 은 Jenkins Global Tool Configuration 의 Ansible 이름.
 > `inventory` 파라미터는 생략. Agent 의 `/etc/ansible/ansible.cfg` 가 자동 사용.
-> `extraVars` 의 `hidden: true` 가 콘솔 마스킹을 보장. 빠뜨리면 비밀번호가 로그에 노출됨.
+> playbook 의 `vars_files` 가 vault 파일을 로딩하면 ansible 이 런타임에 자동 복호화.
 
 ---
 
@@ -132,18 +136,19 @@ stages {
 
 ### 서버 타입별 기준
 
-| target_type | connection | gather_facts | become | 사용 Credentials |
-|------------|-----------|--------------|--------|-----------------|
-| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-linux-*` |
-| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-windows-*` |
-| esxi | ssh | true (운영) / false (OS 설치 전) | no | `ansible-esxi-*` |
-| redfish | local | false (BMC 접속) | no | `ansible-redfish-*` |
+| target_type | connection | gather_facts | become | vault 파일 |
+|------------|-----------|--------------|--------|-----------|
+| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `vault/linux.yml` |
+| windows | winrm | true (운영) / false (OS 설치 전) | no | `vault/windows.yml` |
+| esxi | ssh | true (운영) / false (OS 설치 전) | no | `vault/esxi.yml` |
+| redfish | local | false (BMC 접속) | no | `vault/redfish.yml` |
 
-### 자격증명 참조
-
-Playbook 안에서는 그냥 `{{ ansible_user }}` / `{{ ansible_password }}` 로 참조. Jenkinsfile 이 주입한다.
+### 자격증명 참조 (vault 로딩)
 
 ```yaml
+vars_files:
+  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"   # 작업의 target_type 에 맞는 파일
+
 # linux/windows/esxi — ssh/winrm 이 ansible_user/ansible_password 를 자동 사용
 become: true   # linux 만
 
@@ -154,7 +159,8 @@ become: true   # linux 만
     password: "{{ ansible_password }}"
 ```
 
-> Playbook 안에 자격증명을 평문으로 두지 않는다. `vars_files` 로 시크릿을 로딩하지 않는다.
+> Playbook 안에 자격증명을 평문으로 두지 않는다. vault 만 사용한다.
+> ansible-playbook 이 `vaultCredentialsId` 로 받은 비밀번호로 `vars_files` 의 vault 파일을 자동 복호화한다.
 
 ### Windows 전용 WinRM 옵션 (비-시크릿)
 
@@ -248,9 +254,8 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
 - [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가?
 - [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
-- [ ] `withCredentials` 의 `credentialsId` 가 `"ansible-${params.target_type}-user/pass"` 형태로 동적 선택되는가?
-- [ ] `extraVars` 의 모든 자격증명 항목에 `hidden: true` 가 붙어 있는가?
-- [ ] `extraVars` 에 `ansible_user`, `ansible_password`, `ansible_become_password` 세 개를 모두 주입했는가? (become_password 는 linux 외에는 무해)
+- [ ] `vaultCredentialsId: 'ansible-vault-password'` 가 `ansiblePlaybook` 호출에 포함되어 있는가?
+- [ ] (withCredentials / extraVars 로 직접 자격증명을 주입하지 않는가? — vault 로 통일)
 
 ### Playbook
 
@@ -262,8 +267,8 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] 포털이 보낼지 보장 안 되는 hostvars 필드에 `| default('')` 를 붙였는가?
 - [ ] `changed_when: false` 로 읽기 전용 태스크를 표시했는가?
 - [ ] hostvars 를 소비만 하는가? (setting/mutating 금지)
-- [ ] **자격증명을 playbook 안에 평문으로 두지 않았는가?** (Jenkins Credentials → extraVars 경유만)
-- [ ] **`vars_files` 로 vault 를 로딩하지 않는가?** (시크릿은 Jenkins Credentials 만 사용)
+- [ ] **자격증명을 playbook 안에 평문으로 두지 않았는가?** (vault 경유만)
+- [ ] `vars_files` 로 `vault/{target_type}.yml` 을 로딩하는가?
 - [ ] block/rescue 로 실패 처리를 했는가? (선택)
 
 ---
@@ -274,8 +279,9 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 
 ```
 아래 Jenkinsfile 과 Playbook 을 이 프로젝트 컨벤션에 맞게 리팩토링해줘.
-GUIDE_FOR_AI.md 를 참고해서 파라미터, 환경변수, Jenkins Credentials, inventory 를 맞춰줘.
-시크릿은 vault 가 아니라 withCredentials + extraVars 로 주입해야 한다.
+GUIDE_FOR_AI.md 를 참고해서 파라미터, 환경변수, vault, inventory 를 맞춰줘.
+시크릿은 ansible-vault 로 암호화된 vault/{type}.yml 을 playbook 의 vars_files 로 로딩하고,
+Jenkinsfile 은 ansiblePlaybook(vaultCredentialsId: 'ansible-vault-password') 만 추가하면 된다.
 
 [기존 Jenkinsfile 붙여넣기]
 [기존 Playbook 붙여넣기]
