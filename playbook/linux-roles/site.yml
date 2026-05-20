@@ -1,0 +1,12 @@
+---
+- hosts: all
+  connection: ssh
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  roles:
+    - chrony
+    - motd

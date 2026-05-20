@@ -1,0 +1,55 @@
+---
+- name: sshd 안전 재시작 (block/rescue/always)
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: sshd_config 백업 후 재시작
+      block:
+        - name: 현재 설정 백업
+          ansible.builtin.copy:
+            src: /etc/ssh/sshd_config
+            dest: /etc/ssh/sshd_config.bak
+            remote_src: true
+
+        - name: 설정 유효성 검사
+          ansible.builtin.command: sshd -t
+          changed_when: false
+
+        - name: sshd 재시작
+          ansible.builtin.systemd:
+            name: sshd
+            state: restarted
+
+        - name: 22 포트 응답 확인
+          ansible.builtin.wait_for:
+            host: "{{ ansible_host }}"
+            port: 22
+            timeout: 30
+          delegate_to: localhost
+
+      rescue:
+        - name: 백업 설정으로 롤백
+          ansible.builtin.copy:
+            src: /etc/ssh/sshd_config.bak
+            dest: /etc/ssh/sshd_config
+            remote_src: true
+
+        - name: sshd 재시작 (롤백 적용)
+          ansible.builtin.systemd:
+            name: sshd
+            state: restarted
+
+        - name: 실패 알림
+          ansible.builtin.fail:
+            msg: "{{ inventory_hostname }}: sshd 변경 실패 — 백업으로 복원함"
+
+      always:
+        - name: 작업 시각 기록
+          ansible.builtin.debug:
+            msg: "{{ inventory_hostname }}: 작업 종료 {{ ansible_date_time.iso8601 }}"

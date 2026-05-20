@@ -1,0 +1,28 @@
+pipeline {
+    agent { label "${params.loc} && ${params.target_type}" }
+
+    parameters {
+        string(name: 'loc',         defaultValue: '', description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type', defaultValue: '', description: '대상 종류 (linux | windows | esxi | redfish)')
+        text(  name: 'inventory_json', defaultValue: '[]', description: '타겟 호스트 JSON 배열')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}"
+    }
+
+    stages {
+        stage('Run Ansible') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/playbook/linux-roles/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+    }
+}

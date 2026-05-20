@@ -1,0 +1,30 @@
+---
+- name: BMC 사전 점검
+  hosts: all
+  gather_facts: false
+  connection: local
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/redfish.yml"
+
+  tasks:
+    - name: BMC 접속 확인
+      ansible.builtin.uri:
+        url: "https://{{ inventory_hostname }}/redfish/v1/"
+        method: GET
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        validate_certs: false
+      register: bmc
+
+    - name: 펌웨어 인벤토리 조회
+      ansible.builtin.uri:
+        url: "https://{{ inventory_hostname }}/redfish/v1/UpdateService/FirmwareInventory"
+        method: GET
+        user: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        validate_certs: false
+      register: fw
+
+    - ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: BMC OK, firmware components={{ fw.json.Members | length }}"
