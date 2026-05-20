@@ -8,6 +8,8 @@
 # 사용법:
 #   ./scripts/decrypt-vault.sh              # 모든 파일
 #   ./scripts/decrypt-vault.sh linux        # 특정 target_type 만
+#
+# 비밀번호 / ansible-vault 위치 옵션: encrypt-vault.sh 와 동일.
 
 set -euo pipefail
 
@@ -21,9 +23,18 @@ else
   TYPES=(linux windows esxi redfish)
 fi
 
-if ! command -v ansible-vault &>/dev/null; then
-  echo "ERROR: ansible-vault 명령을 찾을 수 없습니다. Ansible 을 설치해 주세요." >&2
-  exit 1
+ANSIBLE_VAULT_BIN="${ANSIBLE_VAULT_BIN:-}"
+if [[ -z "${ANSIBLE_VAULT_BIN}" ]]; then
+  if command -v ansible-vault &>/dev/null; then
+    ANSIBLE_VAULT_BIN="$(command -v ansible-vault)"
+  elif [[ -x /opt/ansible-env/bin/ansible-vault ]]; then
+    ANSIBLE_VAULT_BIN="/opt/ansible-env/bin/ansible-vault"
+  else
+    echo "ERROR: ansible-vault 를 찾을 수 없습니다." >&2
+    echo "  PATH 에 ansible-vault 가 있거나, /opt/ansible-env/bin/ansible-vault 가 존재해야 합니다." >&2
+    echo "  또는 ANSIBLE_VAULT_BIN 환경변수로 경로를 지정하세요." >&2
+    exit 1
+  fi
 fi
 
 VAULT_OPT=()
@@ -50,7 +61,7 @@ for t in "${TYPES[@]}"; do
   fi
 
   echo "decrypt ${SRC} -> ${DST}"
-  ansible-vault decrypt "${SRC}" "${VAULT_OPT[@]}" --output "${DST}"
+  "${ANSIBLE_VAULT_BIN}" decrypt "${SRC}" "${VAULT_OPT[@]}" --output "${DST}"
 done
 
 echo "완료. credentials/ 내용 확인하세요."

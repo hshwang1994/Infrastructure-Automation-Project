@@ -9,6 +9,10 @@
 #   1. 환경변수 ANSIBLE_VAULT_PASSWORD 가 있으면 사용
 #   2. 환경변수 ANSIBLE_VAULT_PASSWORD_FILE 가 가리키는 파일에서 읽음
 #   3. 둘 다 없으면 인터랙티브 입력 (--ask-vault-pass)
+#
+# ansible-vault 위치:
+#   PATH 에 있으면 그걸 사용, 없으면 /opt/ansible-env/bin/ansible-vault 시도.
+#   둘 다 없으면 ANSIBLE_VAULT_BIN 환경변수로 override 가능.
 
 set -euo pipefail
 
@@ -23,10 +27,19 @@ else
   TYPES=(linux windows esxi redfish)
 fi
 
-# ansible-vault 가용성 확인
-if ! command -v ansible-vault &>/dev/null; then
-  echo "ERROR: ansible-vault 명령을 찾을 수 없습니다. Ansible 을 설치해 주세요." >&2
-  exit 1
+# ansible-vault 위치 찾기 (override > PATH > venv 표준 경로)
+ANSIBLE_VAULT_BIN="${ANSIBLE_VAULT_BIN:-}"
+if [[ -z "${ANSIBLE_VAULT_BIN}" ]]; then
+  if command -v ansible-vault &>/dev/null; then
+    ANSIBLE_VAULT_BIN="$(command -v ansible-vault)"
+  elif [[ -x /opt/ansible-env/bin/ansible-vault ]]; then
+    ANSIBLE_VAULT_BIN="/opt/ansible-env/bin/ansible-vault"
+  else
+    echo "ERROR: ansible-vault 를 찾을 수 없습니다." >&2
+    echo "  PATH 에 ansible-vault 가 있거나, /opt/ansible-env/bin/ansible-vault 가 존재해야 합니다." >&2
+    echo "  또는 ANSIBLE_VAULT_BIN 환경변수로 경로를 지정하세요." >&2
+    exit 1
+  fi
 fi
 
 # 비밀번호 옵션 결정
@@ -54,7 +67,7 @@ for t in "${TYPES[@]}"; do
   fi
 
   echo "encrypt ${SRC} -> ${DST}"
-  ansible-vault encrypt "${SRC}" "${VAULT_OPT[@]}" --output "${DST}"
+  "${ANSIBLE_VAULT_BIN}" encrypt "${SRC}" "${VAULT_OPT[@]}" --output "${DST}"
 done
 
 echo "완료. vault/*.yml 을 commit 하세요."
