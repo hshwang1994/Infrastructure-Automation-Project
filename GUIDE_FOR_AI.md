@@ -32,30 +32,24 @@ automation-standards-guide/
 
 ### 표준 Credential ID
 
-**linux / windows 공용** (현재 사양: `infra` / `infra1234` — 사내 테스트 계정)
+**ID 네이밍 규칙:** `ansible-{target_type}-user` / `ansible-{target_type}-pass`
 
-| ID | 종류 | 값 | 매핑 |
-|---|---|---|---|
-| `ansible-infra-user` | Secret Text | `infra` | `ansible_user` |
-| `ansible-infra-pass` | Secret Text | `infra1234` | `ansible_password`, `ansible_become_password` |
+target_type 별로 별도 ID 를 유지한다. 현재 값은 모두 사내 테스트 계정 (`infra` / `infra1234`) 으로 통일하며, 향후 운영 환경에서 각 ID 의 값만 교체한다 — Jenkinsfile/playbook 은 변경 불필요.
 
-**ESXi** (별도 ID)
-
-| ID | 종류 | 매핑 |
+| ID | 종류 | 현재 값 |
 |---|---|---|
-| `ansible-esxi-user` | Secret Text | `ansible_user` |
-| `ansible-esxi-pass` | Secret Text | `ansible_password` |
+| `ansible-linux-user` / `ansible-linux-pass` | Secret Text | `infra` / `infra1234` |
+| `ansible-windows-user` / `ansible-windows-pass` | Secret Text | `infra` / `infra1234` |
+| `ansible-esxi-user` / `ansible-esxi-pass` | Secret Text | `infra` / `infra1234` |
+| `ansible-redfish-user` / `ansible-redfish-pass` | Secret Text | `infra` / `infra1234` |
 
-**Redfish** (vendor 별 분리)
+매핑:
+- `-user` → `ansible_user`
+- `-pass` → `ansible_password` (linux 는 추가로 `ansible_become_password`)
 
-| ID 패턴 | 종류 |
-|---|---|
-| `ansible-redfish-{vendor}-user` | Secret Text |
-| `ansible-redfish-{vendor}-pass` | Secret Text |
+Jenkinsfile 은 `params.target_type` 으로 ID 를 동적 선택하므로 target_type 별 분기 코드가 필요 없다. 자세한 패턴은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
 
-> vendor: `dell` / `hpe` / `lenovo` / `supermicro`
-
-자세한 표·등록 절차·target_type 별 `withCredentials` 코드 패턴은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+> Redfish 는 단일 ID 통일. 향후 vendor 별 분리가 필요해지면 `ansible-redfish-{vendor}-*` 로 분기 추가.
 
 ---
 
@@ -104,8 +98,8 @@ stages {
     stage('Run Ansible') {
         steps {
             withCredentials([
-                string(credentialsId: 'ansible-infra-user', variable: 'U'),
-                string(credentialsId: 'ansible-infra-pass', variable: 'P')
+                string(credentialsId: "ansible-${params.target_type}-user", variable: 'U'),
+                string(credentialsId: "ansible-${params.target_type}-pass", variable: 'P')
             ]) {
                 ansiblePlaybook(
                     installation: 'ansible',
@@ -113,7 +107,7 @@ stages {
                     extraVars   : [
                         ansible_user           : [value: "${U}", hidden: true],
                         ansible_password       : [value: "${P}", hidden: true],
-                        ansible_become_password: [value: "${P}", hidden: true]   // linux 만
+                        ansible_become_password: [value: "${P}", hidden: true]   // linux 외에는 사용 안 되지만 무해
                     ],
                     colorized: true
                 )
@@ -123,10 +117,10 @@ stages {
 }
 ```
 
-> `installation: 'ansible'` 은 Jenkins Global Tool Configuration 의 Ansible 이름. 경로는 Jenkins 가 관리.
+> `credentialsId` 가 `params.target_type` 으로 동적 선택되므로 target_type 별 분기 코드가 필요 없다.
+> `installation: 'ansible'` 은 Jenkins Global Tool Configuration 의 Ansible 이름.
 > `inventory` 파라미터는 생략. Agent 의 `/etc/ansible/ansible.cfg` 가 자동 사용.
 > `extraVars` 의 `hidden: true` 가 콘솔 마스킹을 보장. 빠뜨리면 비밀번호가 로그에 노출됨.
-> target_type 별 변형(windows: become 없음 / redfish: vendor 별 credential)은 [`docs/jenkinsfile-guide.md`](./docs/jenkinsfile-guide.md) 참고.
 
 ---
 
@@ -136,10 +130,10 @@ stages {
 
 | target_type | connection | gather_facts | become | 사용 Credentials |
 |------------|-----------|--------------|--------|-----------------|
-| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-infra-*` |
-| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-infra-*` |
+| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-linux-*` |
+| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-windows-*` |
 | esxi | ssh | true (운영) / false (OS 설치 전) | no | `ansible-esxi-*` |
-| redfish | local | false (BMC 접속) | no | `ansible-redfish-{vendor}-*` |
+| redfish | local | false (BMC 접속) | no | `ansible-redfish-*` |
 
 ### 자격증명 참조
 
@@ -250,10 +244,9 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 - [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
 - [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가?
 - [ ] `installation: 'ansible'` 파라미터가 포함되어 있는가?
-- [ ] `withCredentials` 로 자격증명을 추출하는가? (target_type 에 맞는 ID 사용)
+- [ ] `withCredentials` 의 `credentialsId` 가 `"ansible-${params.target_type}-user/pass"` 형태로 동적 선택되는가?
 - [ ] `extraVars` 의 모든 자격증명 항목에 `hidden: true` 가 붙어 있는가?
-- [ ] linux 면 `ansible_become_password` 도 함께 주입했는가?
-- [ ] redfish 면 vendor 별 credential ID 를 동적으로 선택하는가?
+- [ ] `extraVars` 에 `ansible_user`, `ansible_password`, `ansible_become_password` 세 개를 모두 주입했는가? (become_password 는 linux 외에는 무해)
 
 ### Playbook
 

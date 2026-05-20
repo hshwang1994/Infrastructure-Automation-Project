@@ -31,8 +31,8 @@ pipeline {
         stage('Run Ansible') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'ansible-infra-user', variable: 'ANSIBLE_REMOTE_USER'),
-                    string(credentialsId: 'ansible-infra-pass', variable: 'ANSIBLE_REMOTE_PASS')
+                    string(credentialsId: "ansible-${params.target_type}-user", variable: 'ANSIBLE_REMOTE_USER'),
+                    string(credentialsId: "ansible-${params.target_type}-pass", variable: 'ANSIBLE_REMOTE_PASS')
                 ]) {
                     ansiblePlaybook(
                         installation: 'ansible',
@@ -51,8 +51,9 @@ pipeline {
 }
 ```
 
-> 위 예시는 **linux / windows 공용 계정 (`infra` / `infra1234`)** 기준이다.
-> ESXi / Redfish 는 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션의 별도 ID 표 참고.
+> `credentialsId` 가 `params.target_type` 으로 동적 선택된다 — `ansible-linux-*`, `ansible-windows-*`, `ansible-esxi-*`, `ansible-redfish-*`.
+> `ansible_become_password` 는 linux 외 target_type 에서는 사용되지 않지만 extra 로 넘겨도 무해하므로 모든 타입에 동일하게 주입한다.
+> 자격증명 ID 와 값 표준은 아래 [Jenkins Credentials](#jenkins-credentials-자격증명-주입) 섹션 참고.
 
 ## 예약 파라미터 (3개 필수)
 
@@ -76,92 +77,48 @@ Jenkins → Manage Jenkins → Credentials → System → Global credentials →
 
 ### Credential ID 표준
 
-**linux / windows 공용 (현재 사양: `infra` / `infra1234`)**
+**ID 네이밍 규칙:** `ansible-{target_type}-user` / `ansible-{target_type}-pass`
 
-| Credential ID | 종류 | 값 | 매핑되는 ansible 변수 |
+target_type 별로 **별도 ID** 를 유지한다 (운영 단계에서 계정 분리가 필요하기 때문). 현재는 사내 테스트 단계라 **모든 값을 `infra` / `infra1234` 로 통일**해 두지만, 향후 각 target_type 별 실제 운영 계정으로 교체될 수 있다.
+
+| Credential ID | 종류 | 현재 값 | 향후 교체 예시 |
 |---|---|---|---|
-| `ansible-infra-user` | Secret Text | `infra` | `ansible_user` |
-| `ansible-infra-pass` | Secret Text | `infra1234` | `ansible_password`, `ansible_become_password` |
+| `ansible-linux-user` / `ansible-linux-pass` | Secret Text | `infra` / `infra1234` | 운영 SSH 계정 |
+| `ansible-windows-user` / `ansible-windows-pass` | Secret Text | `infra` / `infra1234` | 운영 도메인 계정 |
+| `ansible-esxi-user` / `ansible-esxi-pass` | Secret Text | `infra` / `infra1234` | `root` 등 ESXi 계정 |
+| `ansible-redfish-user` / `ansible-redfish-pass` | Secret Text | `infra` / `infra1234` | iDRAC / iLO 등 BMC 계정 |
 
-**ESXi (별도 ID 필요)**
+각 `-user` 는 `ansible_user`, `-pass` 는 `ansible_password` (linux 는 추가로 `ansible_become_password`) 에 매핑된다.
 
-| Credential ID | 종류 | 매핑되는 ansible 변수 |
-|---|---|---|
-| `ansible-esxi-user` | Secret Text | `ansible_user` |
-| `ansible-esxi-pass` | Secret Text | `ansible_password` |
+> Redfish 는 현재 단일 ID 로 통일. 향후 vendor 별 계정 분리가 필요해지면 `ansible-redfish-{vendor}-user` 형태로 분기하고, Jenkinsfile 의 `credentialsId` 식을 `"ansible-redfish-${vendor}-user"` 로 바꾼다.
 
-**Redfish (vendor 별 분리)**
+### Jenkinsfile 표준 패턴 (모든 target_type 공통)
 
-| Credential ID | 종류 | 매핑되는 ansible 변수 |
-|---|---|---|
-| `ansible-redfish-dell-user` / `ansible-redfish-dell-pass` | Secret Text | iDRAC 계정 |
-| `ansible-redfish-hpe-user` / `ansible-redfish-hpe-pass` | Secret Text | iLO 계정 |
-| `ansible-redfish-lenovo-user` / `ansible-redfish-lenovo-pass` | Secret Text | XCC 계정 |
-| `ansible-redfish-supermicro-user` / `ansible-redfish-supermicro-pass` | Secret Text | SMC IPMI 계정 |
+`credentialsId` 가 `params.target_type` 으로 동적 선택되므로 **target_type 별 분기가 필요 없다.** 단일 stage 로 4가지 모두 처리 가능.
 
-### target_type 별 withCredentials 패턴
-
-**linux** (sudo become 포함):
 ```groovy
-withCredentials([
-    string(credentialsId: 'ansible-infra-user', variable: 'U'),
-    string(credentialsId: 'ansible-infra-pass', variable: 'P')
-]) {
-    ansiblePlaybook(
-        installation: 'ansible',
-        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-        extraVars   : [
-            ansible_user           : [value: "${U}", hidden: true],
-            ansible_password       : [value: "${P}", hidden: true],
-            ansible_become_password: [value: "${P}", hidden: true]
-        ],
-        colorized: true
-    )
-}
-```
-
-**windows** (WinRM, become 없음):
-```groovy
-withCredentials([
-    string(credentialsId: 'ansible-infra-user', variable: 'U'),
-    string(credentialsId: 'ansible-infra-pass', variable: 'P')
-]) {
-    ansiblePlaybook(
-        installation: 'ansible',
-        playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-        extraVars   : [
-            ansible_user    : [value: "${U}", hidden: true],
-            ansible_password: [value: "${P}", hidden: true]
-        ],
-        colorized: true
-    )
-}
-```
-
-> WinRM 연결 옵션(`ansible_connection`, `ansible_winrm_transport` 등)은 playbook 의 `vars` 블록에 넣는다 ([`playbook-guide.md`](./playbook-guide.md) 의 windows 예시 참고). 시크릿이 아니므로 코드에 두어도 무방.
-
-**redfish** (vendor 별 credential 선택):
-```groovy
-script {
-    def vendor = '...'   // 포털 입력 또는 inventory_json 의 vendor 필드에서 추출
-    withCredentials([
-        string(credentialsId: "ansible-redfish-${vendor}-user", variable: 'U'),
-        string(credentialsId: "ansible-redfish-${vendor}-pass", variable: 'P')
-    ]) {
-        ansiblePlaybook(
-            installation: 'ansible',
-            playbook    : "${WORKSPACE}/{작업경로}/site.yml",
-            extraVars   : [
-                ansible_user    : [value: "${U}", hidden: true],
-                ansible_password: [value: "${P}", hidden: true]
-            ],
-            colorized: true
-        )
+stage('Run Ansible') {
+    steps {
+        withCredentials([
+            string(credentialsId: "ansible-${params.target_type}-user", variable: 'U'),
+            string(credentialsId: "ansible-${params.target_type}-pass", variable: 'P')
+        ]) {
+            ansiblePlaybook(
+                installation: 'ansible',
+                playbook    : "${WORKSPACE}/{작업경로}/site.yml",
+                extraVars   : [
+                    ansible_user           : [value: "${U}", hidden: true],
+                    ansible_password       : [value: "${P}", hidden: true],
+                    ansible_become_password: [value: "${P}", hidden: true]   // linux 외에는 사용 안 되지만 무해
+                ],
+                colorized: true
+            )
+        }
     }
 }
 ```
 
-> Redfish 는 한 번에 한 vendor 만 처리한다는 전제. 여러 vendor 가 섞이면 vendor 별 stage 분리 권장.
+> WinRM 연결 옵션(`ansible_winrm_transport` 등)은 시크릿이 아니므로 playbook 의 `vars` 블록에 둔다 ([`playbook-guide.md`](./playbook-guide.md) 의 windows 예시 참고).
 
 ### 마스킹 검증
 

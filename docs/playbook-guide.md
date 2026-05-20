@@ -6,7 +6,7 @@
 
 | 계층 | 책임 | 산출물 |
 |------|------|--------|
-| Jenkins Credentials | 서버 접속 계정 보관 | `ansible-infra-user`, `ansible-infra-pass` 등 Secret Text |
+| Jenkins Credentials | 서버 접속 계정 보관 | `ansible-{target_type}-user` / `-pass` Secret Text 4쌍 |
 | Jenkinsfile | 파라미터 수신, Credentials 추출 → `extraVars` 로 주입, 환경변수 노출 | `ansiblePlaybook` 호출 |
 | `inventory/my_inventory.sh` | 환경변수 → Ansible 인벤토리 JSON 변환 (라우터) | `inventory_hostname`, `ansible_host`, `hostvars` |
 | **Playbook** | **위에서 만들어진 `hostvars` + 주입된 자격증명을 읽기만 함** | 실제 작업 수행 |
@@ -43,12 +43,12 @@
 
 | target_type | connection | gather_facts | become | 사용 Jenkins Credentials |
 |------------|-----------|--------------|--------|------------------------|
-| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-infra-user` / `ansible-infra-pass` |
-| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-infra-user` / `ansible-infra-pass` |
+| linux | ssh | true (운영) / false (OS 설치 전) | yes (sudo) | `ansible-linux-user` / `ansible-linux-pass` |
+| windows | winrm | true (운영) / false (OS 설치 전) | no | `ansible-windows-user` / `ansible-windows-pass` |
 | esxi | ssh | true (운영) / false (OS 설치 전) | no | `ansible-esxi-user` / `ansible-esxi-pass` |
-| redfish | local | false (BMC 접속, OS Fact 수집 불가) | no | `ansible-redfish-{vendor}-user` / `-pass` |
+| redfish | local | false (BMC 접속, OS Fact 수집 불가) | no | `ansible-redfish-user` / `ansible-redfish-pass` |
 
-자격증명 ID 표는 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
+ID 패턴은 `ansible-{target_type}-user` / `ansible-{target_type}-pass` 로 통일. 현재 값은 모두 `infra` / `infra1234` (사내 테스트). 자격증명 ID 표와 동적 선택 패턴은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 "Jenkins Credentials" 섹션 참고.
 
 ---
 
@@ -330,8 +330,8 @@ Jenkinsfile 은 [`jenkinsfile-guide.md`](./jenkinsfile-guide.md) 의 redfish 패
     # ... 이후 vendor 별 실제 OS 설치 태스크 (dell / hpe / lenovo / supermicro)
 ```
 
-> Redfish 는 `ansible-redfish-{vendor}-user` / `-pass` 를 Jenkinsfile 에서 vendor 별로 선택해 주입한다.
-> Playbook 은 vendor 분기를 하지 않아도 되며, `ansible_user` / `ansible_password` 만 그대로 사용한다.
+> Redfish 자격증명은 현재 `ansible-redfish-user` / `ansible-redfish-pass` 단일 ID 로 통일. Jenkinsfile 이 `params.target_type` 기준으로 자동 선택한다.
+> Playbook 은 vendor 분기 없이 `ansible_user` / `ansible_password` 만 그대로 참조한다.
 
 ---
 
