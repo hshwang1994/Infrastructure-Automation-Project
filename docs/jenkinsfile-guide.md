@@ -4,8 +4,8 @@
 
 모든 Jenkinsfile 은 아래 구조를 기본으로 한다.
 `loc`, `target_type`, `inventory_json` 은 포털이 전달하는 예약 파라미터이다.
-`inventory_json` 의 `defaultValue` 에는 기본 4개 필드(`bmc_ip`, `service_ip`, `hostname`, `vendor`)를 항상 포함한다.
-확장 필드가 필요하면 뒤에 추가한다.
+`inventory_json` 의 `defaultValue` 는 **빈 배열 `[]`** 만 둔다.
+실제 필드와 값은 포털이 서버 선택 시 전체를 채워서 전달하므로 Jenkinsfile 에서 스키마를 정의하지 않는다.
 
 ```groovy
 pipeline {
@@ -19,18 +19,11 @@ pipeline {
         string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
 
         // 포털 전달: 타겟 호스트 JSON 배열
-        // defaultValue 는 포털이 jspreadsheet 컬럼 정의로 사용한다.
+        // defaultValue 는 배열 형태 힌트용 빈 배열만 둔다. 필드/값은 포털이 전부 채워 보낸다.
         text(
             name        : 'inventory_json',
-            defaultValue: '''[
-  {
-    "bmc_ip": "",
-    "service_ip": "",
-    "hostname": "",
-    "vendor": ""
-  }
-]''',
-            description : '포털에서 전달하는 타겟 호스트 JSON'
+            defaultValue: '[]',
+            description : '포털에서 전달하는 타겟 호스트 JSON 배열'
         )
     }
 
@@ -83,9 +76,9 @@ playbook 에서 직접 참조한다.
 
 ### 포털이 보내는 필드
 
-`defaultValue` 에는 기본 4개 필드를 항상 넣지만,
-포털이 실제로 보내는 값은 작업에 따라 다르다.
-필요 없는 필드는 빈 문자열로 들어오며, 정상 동작한다.
+Jenkinsfile `defaultValue` 는 빈 배열(`[]`) 이고, 필드 스키마는 포털이 작업별로 관리한다.
+포털이 실제로 보내는 값은 작업에 따라 다르며, 필요 없는 필드는 빈 문자열로 들어와도 정상 동작한다.
+"배열이다" 와 "필수 필드가 있다" 는 검증은 `my_inventory.sh` 가 수행한다.
 
 **예시 — Linux 서비스 점검 (bmc_ip, vendor 는 빈 값):**
 ```json

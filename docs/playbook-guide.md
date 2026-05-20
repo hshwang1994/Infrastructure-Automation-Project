@@ -99,22 +99,8 @@ pipeline {
         string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
         text(
             name        : 'inventory_json',
-            defaultValue: '''[
-  {
-    "bmc_ip": "",
-    "service_ip": "",
-    "hostname": "",
-    "vendor": "",
-    "mgmt_ip": "",
-    "storage_ip": "",
-    "gateway": "",
-    "netmask": "",
-    "dns_servers": "",
-    "os_image": "",
-    "boot_mode": ""
-  }
-]''',
-            description : '포털에서 전달하는 타겟 호스트 JSON'
+            defaultValue: '[]',
+            description : '포털에서 전달하는 타겟 호스트 JSON 배열'
         )
     }
 
