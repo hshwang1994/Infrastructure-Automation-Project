@@ -43,14 +43,17 @@ if [[ -z "${ANSIBLE_VAULT_BIN}" ]]; then
 fi
 
 # 비밀번호 옵션 결정
+# ANSIBLE_VAULT_PASSWORD_FILE env 가 있으면 ansible-vault 가 자동으로 인식하므로
+# CLI 의 --vault-password-file 을 추가로 주면 vault-id 가 중복되어 에러가 난다.
+# 따라서 env 가 이미 잡혀있는 경우 CLI flag 는 생략.
 VAULT_OPT=()
 if [[ -n "${ANSIBLE_VAULT_PASSWORD:-}" ]]; then
   TMP_PW_FILE="$(mktemp)"
   trap 'rm -f "${TMP_PW_FILE}"' EXIT
   printf '%s' "${ANSIBLE_VAULT_PASSWORD}" > "${TMP_PW_FILE}"
-  VAULT_OPT=(--vault-password-file "${TMP_PW_FILE}")
+  export ANSIBLE_VAULT_PASSWORD_FILE="${TMP_PW_FILE}"
 elif [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
-  VAULT_OPT=(--vault-password-file "${ANSIBLE_VAULT_PASSWORD_FILE}")
+  : # ansible-vault 가 env 를 자동 사용 — 별도 처리 불필요
 else
   VAULT_OPT=(--ask-vault-pass)
 fi
