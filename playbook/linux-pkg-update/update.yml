@@ -1,0 +1,30 @@
+---
+- name: 보안 패치 적용
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: RHEL 계열 — 보안 업데이트만
+      ansible.builtin.dnf:
+        name: '*'
+        state: latest
+        security: true
+      when: ansible_facts.os_family == 'RedHat'
+      register: dnf_result
+
+    - name: Debian 계열 — safe upgrade
+      ansible.builtin.apt:
+        upgrade: safe
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_facts.os_family == 'Debian'
+      register: apt_result
+
+    - name: 적용된 패키지 요약
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: changed={{ (dnf_result.changed | default(false)) or (apt_result.changed | default(false)) }}"

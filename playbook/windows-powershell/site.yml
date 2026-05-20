@@ -1,0 +1,53 @@
+---
+- name: Windows 시스템 정보 (PowerShell 명령만 사용)
+  hosts: all
+  gather_facts: false
+  connection: winrm
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port:                         5985
+
+  tasks:
+    - name: OS 정보
+      ansible.windows.win_shell: |
+        $os = Get-CimInstance Win32_OperatingSystem
+        [PSCustomObject]@{
+            Caption        = $os.Caption
+            Version        = $os.Version
+            BuildNumber    = $os.BuildNumber
+            LastBootUpTime = $os.LastBootUpTime
+        } | ConvertTo-Json -Compress
+      register: os_info
+      changed_when: false
+
+    - name: 디스크 사용량
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
+            "{0}: Total={1:N1}GB Free={2:N1}GB" -f $_.DeviceID, ($_.Size/1GB), ($_.FreeSpace/1GB)
+        }
+      register: disk
+      changed_when: false
+
+    - name: 상위 CPU 사용 프로세스 5개
+      ansible.windows.win_shell: |
+        Get-Process | Sort-Object CPU -Descending |
+            Select-Object -First 5 Name, Id, @{N='CPU(s)';E={[math]::Round($_.CPU,1)}} |
+            Format-Table -AutoSize | Out-String
+      register: top_proc
+      changed_when: false
+
+    - name: 결과
+      ansible.builtin.debug:
+        msg: |
+          [{{ inventory_hostname }}]
+          == OS ==
+          {{ os_info.stdout | trim }}
+          == DISK ==
+          {{ disk.stdout | trim }}
+          == TOP PROCESSES ==
+          {{ top_proc.stdout | trim }}
