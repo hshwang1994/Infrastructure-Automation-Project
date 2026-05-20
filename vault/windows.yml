@@ -1,0 +1,9 @@
+---
+# windows target_type 자격증명 — vault/windows.yml 의 평문 원본
+# 변경 시 scripts/encrypt-vault.sh 로 vault/windows.yml 재생성 필요.
+#
+# WinRM 비-시크릿 옵션(ansible_winrm_transport 등)은 vault 에 넣지 않는다.
+# playbook 의 vars 블록에 직접 작성한다 — docs/playbook-guide.md 의 windows 예시 참고.
+
+ansible_user:     infra
+ansible_password: infra1234
