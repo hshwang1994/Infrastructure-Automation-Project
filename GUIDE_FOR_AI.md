@@ -14,13 +14,17 @@
 automation-standards-guide/
   inventory/
     my_inventory.sh        ← 동적 인벤토리 스크립트 (모든 작업에서 공통 사용)
+  credentials/             ← Jenkins Credentials 등록 전 원본 정의서 (값 추적용)
+    README.md
+    linux.yml / windows.yml / esxi.yml / redfish.yml
   docs/
     ansible-cfg-guide.md   ← ansible.cfg 표준
     jenkinsfile-guide.md   ← Jenkinsfile 작성 표준 (상세)
     playbook-guide.md      ← Playbook 작성 표준 (상세)
 ```
 
-> 자격증명은 저장소 파일이 아니라 **Jenkins Credentials** 에 저장한다 (§2 참고).
+> 실제 인증은 **Jenkins Credentials** 가 수행한다 (§2 참고).
+> `credentials/` 디렉토리는 등록 전 원본 값을 추적하는 명세서 (source of truth) — 실행 경로 아님.
 > 작업 저장소 쪽의 Playbook 디렉터리 구조는 작업 저장소 README 에서 별도 정의한다.
 > 이 가이드는 **각 파일을 어떻게 작성할지**에만 책임을 진다.
 

@@ -43,10 +43,17 @@ automation-standards-guide/
 │   └── playbook-guide.md          ← Playbook 작성 표준
 ├── inventory/
 │   └── my_inventory.sh            ← 모든 작업이 공통으로 쓰는 동적 인벤토리 스크립트
+├── credentials/                   ← Jenkins Credentials 원본 정의서 (Source of Truth)
+│   ├── README.md
+│   ├── linux.yml
+│   ├── windows.yml
+│   ├── esxi.yml
+│   └── redfish.yml
 └── GUIDE_FOR_AI.md                ← AI 자동 생성용 컨텍스트
 ```
 
-> 서버 접속 계정은 저장소가 아닌 **Jenkins Credentials** (Manage Jenkins → Credentials → Global) 에 보관합니다. 표준 Credential ID 목록은 `docs/jenkinsfile-guide.md` 와 `GUIDE_FOR_AI.md` 참고.
+> 실제 인증은 **Jenkins Credentials** (Manage Jenkins → Credentials → Global) 가 수행합니다.
+> `credentials/` 디렉토리는 "Jenkins 에 어떤 ID 로 어떤 값을 등록해야 하는가" 를 추적하는 명세서일 뿐, 그 자체로 인증이 일어나지는 않습니다. 자세한 사용법은 `credentials/README.md` 참고.
 
 ## 새 작업 추가 시 따라야 할 흐름
 
