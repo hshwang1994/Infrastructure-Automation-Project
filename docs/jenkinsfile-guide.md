@@ -12,18 +12,12 @@ pipeline {
     agent { label "${params.loc} && ${params.target_type}" }
 
     parameters {
-        // 포털 전달: Agent 위치 (ich | chj | yi)
-        string(name: 'loc', defaultValue: '', description: '포털 전달: Agent 위치')
-
-        // 포털 전달: 대상 종류 (linux | windows | esxi | redfish)
-        string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
-
-        // 포털 전달: 타겟 호스트 JSON 배열
-        // defaultValue 는 배열 형태 힌트용 빈 배열만 둔다. 필드/값은 포털이 전부 채워 보낸다.
+        string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류 (linux | windows | esxi | redfish)')
         text(
             name        : 'inventory_json',
             defaultValue: '[]',
-            description : '포털에서 전달하는 타겟 호스트 JSON 배열'
+            description : '포털 전달: 타겟 호스트 JSON 배열'
         )
     }
 

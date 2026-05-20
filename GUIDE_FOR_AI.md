@@ -38,22 +38,16 @@ automation-standards-guide/
 
 모든 Jenkinsfile 에는 반드시 아래 3개 파라미터가 있어야 한다.
 포털이 전달하는 값이므로 `defaultValue` 는 빈 값으로 유지한다.
+`inventory_json` 은 배열 형태 힌트용 `'[]'` 만 두고, 필드/값 정의는 포털이 자체 관리한다.
 
 ```groovy
 parameters {
-    string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치')
-    string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류')
+    string(name: 'loc',         defaultValue: '', description: '포털 전달: Agent 위치 (ich | chj | yi)')
+    string(name: 'target_type', defaultValue: '', description: '포털 전달: 대상 종류 (linux | windows | esxi | redfish)')
     text(
         name        : 'inventory_json',
-        defaultValue: '''[
-  {
-    "bmc_ip": "",
-    "service_ip": "",
-    "hostname": "",
-    "vendor": ""
-  }
-]''',
-        description : '포털에서 전달하는 타겟 호스트 JSON'
+        defaultValue: '[]',
+        description : '포털 전달: 타겟 호스트 JSON 배열'
     )
 }
 ```
@@ -81,33 +75,25 @@ ansiblePlaybook(
 > `installation: 'ansible'` 은 Jenkins Global Tool Configuration 에 등록된 Ansible 이름이다.
 > 경로(`/opt/ansible-env/bin`)는 Jenkins 설정에서 관리하며 Jenkinsfile 에 하드코딩하지 않는다.
 
-> `inventory` 파라미터는 생략한다. 프로젝트 루트의 `ansible.cfg` 에서 `./inventory/my_inventory.sh` 를 기본 인벤토리로 지정하고 있다.
+> `inventory` 파라미터는 생략한다. Agent 의 `/etc/ansible/ansible.cfg` 가 `/opt/ansible-env/inventory/my_inventory.sh` 를 기본 인벤토리로 지정하고 있다. 자세한 절차는 [`docs/ansible-cfg-guide.md`](./docs/ansible-cfg-guide.md) 참고.
 
 ### inventory_json defaultValue 작성법
 
-`defaultValue` 는 포털이 jspreadsheet 컬럼 정의로 사용한다.
-**기본 4개 필드(`bmc_ip`, `service_ip`, `hostname`, `vendor`)는 항상 포함**하고,
-확장 필드가 필요하면 뒤에 추가한다.
+`defaultValue` 는 **항상 `'[]'`** 만 둔다. 필드/값 정의는 Jenkinsfile 의 책임이 아니다.
 
-포털이 값을 안 던져주는 필드는 빈 문자열로 들어오며, 정상 동작한다.
+- 포털이 작업별 필드 스키마를 자체적으로 관리하고, 실행 시 전체 JSON 을 채워서 전달한다.
+- "배열이다" 와 "필수 필드가 있다" 는 검증은 `inventory/my_inventory.sh` 가 전담한다.
+- 따라서 Jenkinsfile 에 필드 목록을 박지 않는다 — 작업이 추가될 때 Jenkinsfile 을 안 건드려도 된다.
 
-**기본 (모든 Jenkinsfile 공통):**
 ```groovy
-defaultValue: '''[
-  { "bmc_ip": "", "service_ip": "", "hostname": "", "vendor": "" }
-]'''
+text(
+    name        : 'inventory_json',
+    defaultValue: '[]',
+    description : '포털 전달: 타겟 호스트 JSON 배열'
+)
 ```
 
-**확장 필드가 필요한 경우 (예: BMC OS 설치):**
-```groovy
-defaultValue: '''[
-  {
-    "bmc_ip": "", "service_ip": "", "hostname": "", "vendor": "",
-    "mgmt_ip": "", "storage_ip": "", "gateway": "", "netmask": "",
-    "dns_servers": "", "os_image": "", "boot_mode": ""
-  }
-]'''
-```
+> 수동 빌드(Build with Parameters) 시에는 빈 배열 `[]` 로 시작 → `my_inventory.sh` 가 즉시 "배열이 비어있다" 에러로 안전하게 막는다.
 
 ---
 
@@ -166,7 +152,7 @@ hosts: all
 | redfish | `bmc_ip` 값 | `bmc_ip` 값 |
 | linux / windows / esxi | `hostname` 값 | `service_ip` 값 |
 
-### 스크립트가 사용하는 필드 (3개만)
+### 스크립트가 키로 소비하는 필드
 
 | 필드 | 사용 조건 | 역할 |
 |------|----------|------|
@@ -174,20 +160,31 @@ hosts: all
 | `service_ip` | target_type != redfish | ansible_host |
 | `hostname` | target_type != redfish | inventory_hostname |
 
-### 나머지 필드 = 전부 통과
+### hostvars 에 무엇이 남는가 (실측 기준)
 
-위 3개 외의 모든 필드는 이름이 뭐든 값이 뭐든 `hostvars` 에 그대로 전달된다.
-포털은 작업에 따라 어떤 필드든 자유롭게 추가할 수 있으며,
-playbook 에서 `hostvars[inventory_hostname]['필드명']` 으로 참조한다.
+규칙: **inventory_hostname 으로 쓴 필드만 hostvars 에서 제외**되고, 나머지는 전부 그대로 통과한다. 거기에 `ansible_host` 가 추가된다.
+
+| target_type | hostvars 에서 빠지는 필드 | hostvars 에 항상 추가되는 키 |
+|------------|--------------------------|----------------------------|
+| redfish | `bmc_ip` | `ansible_host` (= bmc_ip) |
+| linux / windows / esxi | `hostname`, `service_ip` | `ansible_host` (= service_ip) |
+
+핵심:
+- **linux 에서도 `bmc_ip` 는 hostvars 에 남는다** (입력에 포함됐다면)
+- **redfish 에서도 `hostname`, `service_ip` 는 hostvars 에 남는다** (입력에 포함됐다면)
+- 빈 문자열로 들어온 필드도 hostvars 에 키가 존재한다 (값만 `""`)
+
+자세한 실측 입출력은 [`docs/playbook-guide.md`](./docs/playbook-guide.md) 의 "3. hostvars 가 실제로 어떻게 채워지는가" 섹션 참고.
 
 ```yaml
-# 포털이 보낸 확장 필드 참조
-_mgmt_ip:    "{{ hostvars[inventory_hostname]['mgmt_ip'] | default('') }}"
+# 포털이 보낸 확장 필드 참조 — 작업에 따라 누락 가능하면 default 필수
+_mgmt_ip:    "{{ hostvars[inventory_hostname]['mgmt_ip']    | default('') }}"
 _storage_ip: "{{ hostvars[inventory_hostname]['storage_ip'] | default('') }}"
-_os_image:   "{{ hostvars[inventory_hostname]['os_image'] }}"
+_os_image:   "{{ hostvars[inventory_hostname]['os_image']   | default('') }}"
 ```
 
-> 선택 필드는 `| default('')` 를 붙여서 누락 시에도 에러가 나지 않게 한다.
+> `inventory_hostname` 과 `ansible_host` 는 `my_inventory.sh` 가 보장하므로 default 불필요.
+> 그 외 필드는 포털이 그 작업에서 보낼지 보장 안 되면 `| default('')` 권장.
 
 ---
 
@@ -198,7 +195,9 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 ### Jenkinsfile
 
 - [ ] `loc`, `target_type`, `inventory_json` 3개 파라미터가 있는가?
-- [ ] `defaultValue` 가 빈 값인가? (테스트용 IP 하드코딩 금지)
+- [ ] `loc`, `target_type` 의 `defaultValue` 가 빈 문자열인가? (테스트용 값 하드코딩 금지)
+- [ ] `inventory_json` 의 `defaultValue` 가 `'[]'` 인가? (필드 스키마 박지 않기)
+- [ ] `agent` 라벨이 `"${params.loc} && ${params.target_type}"` 인가?
 - [ ] `environment` 에 `INVENTORY_JSON`, `TARGET_TYPE`, `REPO_ROOT` 가 있는가?
 - [ ] `inventory` 파라미터를 생략했는가? (ansible.cfg 에서 관리)
 - [ ] `playbook` 경로가 `${WORKSPACE}/...` 로 시작하는가? (작업 저장소 기준 절대경로)
@@ -208,10 +207,11 @@ AI 가 기존 Jenkinsfile / Playbook 을 리팩토링할 때 아래를 확인한
 
 - [ ] `hosts: all` 인가?
 - [ ] `connection` 이 target_type 에 맞는가? (ssh / winrm / local)
-- [ ] `vars_files` 로 vault 를 올바르게 참조하는가?
+- [ ] `vars_files` 로 vault 를 올바르게 참조하는가? (redfish 는 vendor 별 분기)
 - [ ] `_host`, `_ip` 공통 변수를 사용하는가?
-- [ ] 확장 필드 참조 시 `| default('')` 를 붙였는가?
+- [ ] 포털이 보낼지 보장 안 되는 필드에 `| default('')` 를 붙였는가?
 - [ ] `changed_when: false` 로 읽기 전용 태스크를 표시했는가?
+- [ ] hostvars 를 소비만 하는가? (setting/mutating 금지)
 - [ ] block/rescue 로 실패 처리를 했는가? (선택)
 
 ---
