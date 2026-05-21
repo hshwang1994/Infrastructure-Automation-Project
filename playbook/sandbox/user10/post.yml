@@ -1,0 +1,33 @@
+---
+- name: Post-verify — 결과 확인
+  hosts: all
+  gather_facts: false
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    practice_file: /tmp/practice.txt
+
+  tasks:
+    - name: 파일 존재 확인
+      ansible.builtin.stat:
+        path: "{{ practice_file }}"
+      register: practice_stat
+
+    - name: 파일이 없으면 실패
+      ansible.builtin.assert:
+        that:
+          - practice_stat.stat.exists
+        fail_msg: "{{ practice_file }} 없음 — Main stage 가 실패한 듯"
+
+    - name: 파일 내용 읽기
+      ansible.builtin.slurp:
+        src: "{{ practice_file }}"
+      register: practice_content
+
+    - name: 내용 출력
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ (practice_content.content | b64decode) | trim }}"

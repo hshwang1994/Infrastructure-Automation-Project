@@ -15,7 +15,8 @@
 │   ├── tasks/                      실제 운영 작업 (Jenkinsfile + playbook + README 한 세트)
 │   │   ├── linux/                  ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
 │   │   └── windows/                service-check, sysinfo
-│   └── patterns/                   Ansible 문법 데모 (roles 구조, block-rescue, tags) — 학습용
+│   ├── patterns/                   Ansible 문법 데모 (roles 구조, block-rescue, tags) — 학습용
+│   └── sandbox/                    연습용 슬롯 user01~user10 (RHEL 9, 3 stage 템플릿)
 ├── inventory/
 │   └── my_inventory.sh             동적 인벤토리 (포털 JSON → Ansible inventory)
 ├── credentials/                    평문 자격증명 원본 (사람이 편집)

@@ -1,13 +1,14 @@
 # playbook/ — 작성 예시
 
-두 갈래로 나뉜다.
+세 갈래로 나뉜다.
 
 | 디렉토리 | 무엇 |
 |---------|------|
 | [`tasks/`](tasks/) | **실제 운영 작업 예시** (Jenkins 에서 그대로 호출). `linux/` 와 `windows/` 로 묶음. |
 | [`patterns/`](patterns/) | **Ansible 문법·구조 데모** (roles 디렉토리 / block-rescue / tags). 학습용. |
+| [`sandbox/`](sandbox/) | **연습용 슬롯** (`user01` ~ `user10` 10개, 모두 동일 RHEL 9 기준 3 stage 템플릿). 사용자가 본인 슬롯의 yml 을 직접 수정해보며 학습. |
 
-새 작업을 만들 때는 항상 `tasks/` 안에서 가장 비슷한 디렉토리를 복사해서 시작한다. `patterns/` 는 "이 문법은 어떻게 쓰는 거였지?" 를 빠르게 보고 싶을 때 보는 자리.
+새 작업을 만들 때는 항상 `tasks/` 안에서 가장 비슷한 디렉토리를 복사해서 시작한다. `patterns/` 는 "이 문법은 어떻게 쓰는 거였지?" 를 빠르게 보고 싶을 때, `sandbox/` 는 처음 와서 Ansible/Jenkins 감각 익힐 때 보는 자리.
 
 ## tasks/ 작업 목록
 

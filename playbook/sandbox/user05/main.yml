@@ -1,0 +1,27 @@
+---
+- name: Main — 연습용 파일 작성
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  # 이 vars 블록을 자유롭게 바꿔보면서 연습.
+  vars:
+    practice_file:    /tmp/practice.txt
+    practice_message: "hello from sandbox"
+
+  tasks:
+    - name: 연습용 파일 작성
+      ansible.builtin.copy:
+        content: "{{ practice_message }} ({{ ansible_date_time.iso8601 }})\n"
+        dest:    "{{ practice_file }}"
+        owner:   root
+        group:   root
+        mode:    '0644'
+
+    - name: 작성 결과 출력
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ practice_file }} 작성 완료"

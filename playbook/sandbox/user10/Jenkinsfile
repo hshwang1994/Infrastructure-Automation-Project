@@ -1,0 +1,50 @@
+pipeline {
+    agent { label "${params.loc} && ${params.target_type}" }
+
+    parameters {
+        string(name: 'loc',         defaultValue: '',      description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type', defaultValue: 'linux', description: '대상 종류 — 이 슬롯은 RHEL 9 기준 linux 고정')
+        text(  name: 'inventory_json', defaultValue: '[]', description: '타겟 호스트 JSON 배열')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}"
+    }
+
+    stages {
+        stage('Pre-check') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/playbook/sandbox/user10/pre.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+
+        stage('Main') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/playbook/sandbox/user10/main.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+
+        stage('Post-verify') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/playbook/sandbox/user10/post.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+    }
+}
