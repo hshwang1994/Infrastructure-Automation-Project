@@ -1,36 +1,64 @@
-# patterns/import-include — task 파일 분리·재사용
+# patterns/import-include — task 파일을 여러 개로 쪼개기
 
-`import_tasks` 와 `include_tasks` 둘 다 task 모음을 별도 파일로 분리하는 데 쓰지만, **평가 시점**과 **동적 기능** 에서 명확한 차이가 있다.
+playbook 이 task 100 줄을 넘어가면 한눈에 안 들어온다. task 를 별도 yml 파일로 빼내서 메인에서 불러오면 깔끔해진다.
+
+부르는 방법이 두 가지다 — `import_tasks` 와 `include_tasks`. 거의 똑같아 보이지만 한 가지 결정적 차이가 있다:
+
+- **`import_tasks` (정적)** — playbook 을 **읽는 순간** 합쳐짐. 컴파일 시 `#include` 처럼.
+- **`include_tasks` (동적)** — **실행 도중에** 평가됨. 런타임에 결정되는 함수 호출처럼.
+
+이 차이가 "loop 와 같이 쓸 수 있나" 같은 실용적 차이로 이어진다.
 
 ## 구조
 
 ```
 import-include/
-├── site.yml       메인 play
-├── imported.yml   import_tasks 로 가져올 정적 task 모음
-└── included.yml   include_tasks 로 loop 와 함께 부를 동적 task 모음
+├── site.yml         메인 play (두 가지 방식 다 호출)
+├── imported.yml     import_tasks 로 가져올 task 모음
+└── included.yml     include_tasks 로 loop 와 함께 부를 task 모음
 ```
 
-## 데모 시나리오
+## 동작 흐름
 
-1. `import_tasks: imported.yml` — uptime 받아 debug 로 출력 (모든 호스트에서 한 번씩)
-2. `include_tasks: included.yml` 을 `loop: [dev, prod]` 와 같이 — env 별로 `/tmp/include-demo-{env}.conf` 생성
+site.yml 안:
 
-## import vs include — 결정적 차이
+```yaml
+tasks:
+  - name: 1) 정적 import — playbook 시작 시 합쳐짐
+    ansible.builtin.import_tasks: imported.yml
 
-| 항목                | `import_tasks` (정적)                            | `include_tasks` (동적)                         |
-|:--------------------|:-------------------------------------------------|:-----------------------------------------------|
-| 평가 시점           | playbook 파싱 시 합쳐짐                          | task 실행 시점에 평가                          |
-| `loop:` 와 결합     | 불가                                             | 가능                                           |
-| `when:` 동작        | 안쪽 모든 task 에 일괄 적용                      | 포함 자체에 적용 — 조건 false 면 파일 자체 skip |
-| 변수로 파일명 지정  | 제한적 (파싱 시점에 알 수 있는 값만)             | 자유롭게 가능 (`{{ var }}.yml`)                |
-| `--list-tasks` 출력 | 모든 task 보임                                   | 포함 task 안 보임                              |
+  - name: 2) 동적 include — env 마다 한 번씩
+    ansible.builtin.include_tasks: included.yml
+    loop:
+      - dev
+      - prod
+    loop_control:
+      loop_var: env_name
+```
 
-## 언제 어느 것
+## 직접 돌려보기
 
-- **`import_tasks`**: 단순 분리 · 재사용. role 의 `tasks/main.yml` 구조와 잘 맞음
-- **`include_tasks`**: 동적 요소 필요 — loop, 변수로 파일명, 조건부 전체 skip
+```bash
+ansible-playbook -i 인벤토리 site.yml
+```
 
-## 실제 작업에서 같은 패턴 보기
+`imported.yml` 의 task 들이 먼저 실행 (uptime 표시), 그 다음 `included.yml` 이 `env_name=dev`, `env_name=prod` 두 번 실행 (각각 `/tmp/include-demo-dev.conf`, `/tmp/include-demo-prod.conf` 생성).
 
-[`tasks/linux/baseline/`](../../tasks/linux/baseline/) 의 role 구조 — `roles/{name}/tasks/main.yml` 이 자동으로 `import` 됨 (role 의 task 는 정적 import 컨벤션).
+## import vs include — 핵심 비교
+
+| 항목                | `import_tasks` (정적)                | `include_tasks` (동적)                  |
+|:--------------------|:-------------------------------------|:----------------------------------------|
+| 평가 시점           | playbook 파싱 시                     | 실행 도중                               |
+| `loop:` 와 같이     | 불가                                 | **가능**                                |
+| `when:` 동작        | 안쪽 모든 task 에 적용               | include 자체에 적용 (false 면 통째로 skip) |
+| 변수로 파일명       | 제한적                               | 자유롭게 (`{{ var }}.yml`)              |
+| `--list-tasks` 출력 | 모든 task 보임                       | 포함 task 안 보임                       |
+
+## 선택 기준 한 줄
+
+- 단순히 코드 나누고 재사용만 → `import_tasks`
+- loop 같이 쓰거나 변수로 파일명 지정 → `include_tasks`
+
+## 실제 작업에서 어디 쓰이나
+
+role 의 `tasks/main.yml` 은 자동으로 import 됨 (예: `tasks/linux/baseline/`). role 안 task 는 정적 import 컨벤션이다.

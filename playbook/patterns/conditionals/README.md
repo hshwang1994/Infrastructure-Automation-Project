@@ -1,32 +1,43 @@
-# patterns/conditionals — when 으로 task 조건부 실행
+# patterns/conditionals — 호스트나 상황에 따라 다르게 실행
 
-`when:` 으로 task 를 **조건에 맞을 때만** 실행. OS family · 값 비교 · 여러 조건 AND 등 여러 형태가 가능하다.
+같은 task 라도 호스트마다 다르게 동작해야 할 때가 있다:
 
-## 데모 시나리오
+- RHEL 에선 `dnf`, Ubuntu 에선 `apt` 로 패키지 설치 (패키지 매니저가 다름)
+- 메모리 큰 서버에만 빠른 모드 활성화
+- prod 환경에서만 슬랙 알림 보내기
 
-호스트의 `ansible_facts` 를 보고:
-1. OS family 별 분기 (RedHat / Debian / 그 외)
-2. 메모리 크기 기준 분기 (≥ 8 GB / < 8 GB)
-3. 여러 조건 AND (RHEL 9 + x86_64)
+task 옆에 `when:` 키워드를 붙이면 "**이 조건이 참일 때만 실행**" 이 된다. 조건이 거짓이면 그 task 는 그냥 skip (안 돌고 넘어감).
 
-각 task 가 자기 조건에 맞는 호스트에서만 실행되고 나머지는 `skipping` 됨. `gather_facts: true` 필요 (facts 없이는 분기 불가).
+## 동작 흐름
 
-## when 의 문법
+```yaml
+- name: RedHat 계열에서만 실행
+  ansible.builtin.debug:
+    msg: "RHEL 계열입니다"
+  when: ansible_facts.os_family == 'RedHat'
+```
 
-- 단일 조건: `when: ansible_facts.os_family == 'RedHat'`
-- 여러 조건 AND: `when:` 아래 리스트로 나열 (모두 true 여야 실행)
-- 여러 조건 OR: `when: cond_a or cond_b` (인라인 표현식)
-- 부정: `when: not <조건>`, `when: var not in [...]`
-- 결과 값 비교: `when: register_var.rc != 0`
+`gather_facts: true` 가 필수다. 호스트 정보(OS, 메모리, CPU 등) 를 미리 수집해야 조건을 평가할 수 있다.
 
-## 언제 쓰나
+## 직접 돌려보기
 
-- **OS 별 다른 패키지 매니저** (dnf vs apt) — 가장 흔한 케이스
-- **환경 별 다른 동작** (prod 만 슬랙 알림 보내기 등)
-- **이전 task 의 결과**(register 값) 에 따라 다음 task 분기
-- **변수 존재 여부 검증** (`when: my_var is defined`)
+```bash
+ansible-playbook -i 인벤토리 site.yml
+```
 
-## 실제 작업에서 같은 패턴 보기
+호스트 종류에 따라 어떤 task 는 실행되고 어떤 건 `skipping` 으로 표시된다. RHEL 9 호스트에서 돌리면 "RHEL 9 x86_64 환경" task 까지 다 통과한다.
 
-- [`tasks/linux/pkg-update/`](../../tasks/linux/pkg-update/) — `os_family == 'RedHat'` / `== 'Debian'` 으로 `dnf` / `apt` 분기
-- [`tasks/linux/pkg-update/post.yml`](../../tasks/linux/pkg-update/post.yml) — `assert that:` 로 service 상태 분기
+## `when:` 의 흔한 모양
+
+| 쓰임             | 예시                                              |
+|:-----------------|:--------------------------------------------------|
+| 단일 조건        | `when: 변수 == 값`                                |
+| AND 여러 조건    | `when:` 아래 리스트로 — 모두 참이어야 실행        |
+| OR               | `when: 조건A or 조건B`                            |
+| 부정             | `when: not 조건`, `when: 값 not in [...]`         |
+| 변수가 정의됐는지 | `when: my_var is defined`                         |
+
+## 실제 작업에서 어디 쓰이나
+
+- `tasks/linux/pkg-update/` — `os_family == 'RedHat'` / `== 'Debian'` 으로 dnf/apt 분기
+- `sandbox/` 의 `pre.yml` — RHEL 9 인지 확인하고 통과한 호스트만 다음 단계로

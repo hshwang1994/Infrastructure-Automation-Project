@@ -1,24 +1,36 @@
-# patterns/handlers — notify + handlers
+# patterns/handlers — 설정이 바뀌었을 때만 서비스 재시작
 
-config 파일이 **실제로 바뀐 경우에만** service 재시작 같은 후속 동작을 돌리는 패턴. `task` 가 `changed` 상태가 됐을 때만 `notify` 가 발동되고, `handlers` 에 정의된 같은 이름의 항목이 **play 끝에서 한 번** 실행된다.
+서비스 설정 파일(nginx.conf, sshd_config 같은 거)을 고치면 그 서비스를 다시 띄워야 새 설정이 적용된다. 그런데 매번 무조건 재시작하면:
 
-## 데모 시나리오
+- 사용자 입장에서 잠깐 서비스가 끊긴다
+- 재시작 후에 잘 떠 있는지 확인해야 한다
+- 설정 파일 5개를 한 번에 손봤다고 재시작을 5번? 비효율
 
-`/tmp/handlers-demo.conf` 에 `key=value` 작성. 처음 실행하면 파일이 새로 생기니 `changed` → handler 호출. 두 번째 실행은 내용 동일하니 `ok` → handler 호출 안 됨. `vars.config_body` 를 바꾸고 다시 돌리면 다시 `changed` → handler 호출.
+그래서 "**진짜로 설정이 바뀌었을 때만** 재시작" 이 필요하다. Ansible 의 handler 가 정확히 이걸 해준다.
 
-## 언제 쓰나
+## 동작 흐름
 
-- **service 재시작이 비싸거나 위험할 때** — config 가 안 바뀌었으면 재시작 안 시키고 싶음
-- **여러 task 가 같은 service 를 건드릴 때** — 각 task 가 `notify` 만 하고, handler 는 play 끝에서 **한 번만** 실행됨 (중복 재시작 방지)
-- **선언적 동작** — "config 가 바뀌면 자동으로 재시작" 을 한 곳에서 표현
+1. 설정 파일을 만지는 task 옆에 `notify: <handler 이름>` 표시
+2. 그 task 가 **실제로 파일을 바꿨다면** (Ansible 이 `changed` 로 인식) → notify 가 켜짐
+3. 켜진 handler 는 playbook 의 모든 task 가 끝난 뒤 **딱 한 번** 실행
 
-## 핵심 동작
+같은 service 를 5번 notify 해도 handler 는 마지막에 한 번뿐. Ansible 이 알아서 묶어준다.
 
-- `notify: <handler 이름>` 은 task 가 `changed` 됐을 때만 발동
-- handler 는 play 의 모든 task 가 끝난 뒤 발동된 순서대로 한 번 실행
-- play 중간에 즉시 실행하고 싶으면 `ansible.builtin.meta: flush_handlers`
+## 직접 돌려보기
 
-## 실제 작업에서 같은 패턴 보기
+```bash
+ansible-playbook -i 인벤토리 site.yml
+```
 
-- [`tasks/linux/nginx-healthcheck/`](../../tasks/linux/nginx-healthcheck/) — `notify: restart nginx` 로 conf 가 바뀌었을 때만 nginx 재시작
-- [`tasks/linux/baseline/`](../../tasks/linux/baseline/) — chrony role 에서 설정 변경 시 `chronyd` 재시작
+세 번 돌려보면 차이가 보인다:
+
+| 회차 | 무슨 일이 일어나나                                |
+|:---:|:--------------------------------------------------|
+| 1   | 파일이 새로 생김 → "재시작했다" 메시지 출력        |
+| 2   | 내용 동일 → handler 안 돌고 넘어감                  |
+| 3   | `vars: config_body` 값을 바꾸고 돌리면 → 다시 실행 |
+
+## 실제 작업에서 어디 쓰이나
+
+- `tasks/linux/nginx-healthcheck/` — nginx 설정 conf 바뀐 경우에만 nginx 재시작
+- `tasks/linux/baseline/` — chrony 설정 바뀐 경우에만 chronyd 재시작

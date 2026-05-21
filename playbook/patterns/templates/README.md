@@ -1,42 +1,46 @@
-# patterns/templates — Jinja2 template 모듈
+# patterns/templates — 설정 파일을 호스트별로 동적 생성
 
-`ansible.builtin.template` 으로 Jinja2 템플릿을 렌더링해서 타겟에 파일을 배치. 변수 치환 · 반복 · 조건 · 필터 등을 활용할 수 있다.
+nginx 설정, chrony 설정, sshd 설정 같은 config 파일을 만들 때 호스트마다 값이 달라야 한다 (hostname, IP, 활성화할 기능 목록 등). 매번 호스트별로 다른 파일을 손으로 만들면 사고가 나기 쉽다.
+
+Jinja2 **템플릿** 은 "틀 + 값" 으로 분리해서, 같은 틀에 호스트별 값만 채워 동적으로 만들어준다. Python 의 f-string, JavaScript 의 template literal 과 같은 개념을 파일 단위로 한 거라고 보면 된다.
 
 ## 구조
 
 ```
 templates/
-├── site.yml
+├── site.yml                       playbook (틀에 채울 값 정의)
 └── templates/
-    └── demo.conf.j2
+    └── demo.conf.j2               .j2 = Jinja2 템플릿 파일
 ```
 
 `template:` 모듈은 `templates/` 디렉토리 안에서 `.j2` 파일을 자동으로 찾는다.
 
-## 데모 시나리오
+## 동작 흐름
 
-`service_name`, `service_port`, `enabled_features` 같은 변수를 넘기고, `demo.conf.j2` 가:
-- 단순 치환 (`{{ service_name }}`)
-- 반복 (`{% for f in enabled_features %}`)
-- 필터 (`{{ service_name | upper }}`, `{{ owner | default('infra') }}`)
+1. `vars:` 에 값들을 정의 (`service_name`, `service_port`, `enabled_features` …)
+2. `template:` 모듈이 `templates/demo.conf.j2` 를 읽어 변수를 채워 렌더링
+3. 결과를 타깃의 `/tmp/template-demo.conf` 에 배치
+4. 배치된 파일을 다시 읽어서 화면에 출력 (결과 확인용)
 
-를 한 파일에서 보여준다. 결과는 `/tmp/template-demo.conf`.
+## 직접 돌려보기
 
-## 자주 쓰는 Jinja2 패턴
+```bash
+ansible-playbook -i 인벤토리 site.yml
+```
 
-- **치환**: `{{ var }}`
-- **default 값**: `{{ var | default('fallback') }}`
-- **반복**: `{% for x in list %} ... {% endfor %}`
-- **조건**: `{% if env == 'prod' %} ... {% endif %}`
-- **JSON 변환**: `{{ dict_var | to_json }}` / `to_nice_json`
-- **공백 제어**: `{%- for x in list %}` 로 앞뒤 공백 제거
+마지막에 출력되는 conf 파일 안에 `service_name`, `inventory_hostname`, 시각, 기능 목록 등이 채워져 있는 게 보인다. `vars` 값을 바꾸고 다시 돌려보면 결과가 달라진다.
 
-## 언제 쓰나
+## Jinja2 의 흔한 문법
 
-- **service config 파일 생성** — nginx, sshd, chrony, prometheus 등 모든 config
-- **호스트별 다른 값을 넣어야 할 때** — hostname, IP, role 같은 값을 동적으로
-- **여러 환경에서 같은 골격, 다른 값** — dev / staging / prod 별 config
+| 쓰임             | 예시                                                            |
+|:-----------------|:----------------------------------------------------------------|
+| 변수 치환        | `{{ var }}`                                                     |
+| default 값       | `{{ var \| default('infra') }}` (변수가 없으면 'infra' 사용)    |
+| 반복             | `{% for x in list %} ... {% endfor %}`                          |
+| 조건             | `{% if env == 'prod' %} ... {% endif %}`                        |
+| 대문자 변환      | `{{ name \| upper }}`                                           |
+| JSON 출력        | `{{ dict_var \| to_json }}` / `to_nice_json`                    |
 
-## 실제 작업에서 같은 패턴 보기
+## 실제 작업에서 어디 쓰이나
 
-[`tasks/linux/baseline/`](../../tasks/linux/baseline/) — motd role 이 `templates/motd.j2` 로 호스트별 로그인 배너 생성.
+`tasks/linux/baseline/` 의 motd role — `templates/motd.j2` 가 호스트별 로그인 배너를 만든다. hostname 자동 삽입.
