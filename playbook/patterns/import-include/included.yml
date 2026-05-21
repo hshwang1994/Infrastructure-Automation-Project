@@ -1,0 +1,10 @@
+---
+- name: included — env={{ env_name }} 처리 시작
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: include_tasks 로 env={{ env_name }} 동작 시작"
+
+- name: included — env 별로 다른 파일 생성
+  ansible.builtin.copy:
+    content: "this is {{ env_name }} config\n"
+    dest:    "/tmp/include-demo-{{ env_name }}.conf"
+    mode:    '0644'

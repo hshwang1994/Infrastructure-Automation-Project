@@ -1,0 +1,17 @@
+# {{ service_name }} configuration
+# generated for {{ inventory_hostname }} at {{ ansible_date_time.iso8601 }}
+
+service_name = {{ service_name }}
+listen_port  = {{ service_port }}
+host         = {{ inventory_hostname }}
+
+# enabled features (loop)
+{% for f in enabled_features %}
+feature.{{ f }} = true
+{% endfor %}
+
+# 빈 값 default 처리 (필터 예시)
+owner = {{ owner | default('infra') }}
+
+# 대문자 변환 필터 예시
+service_id = {{ service_name | upper }}

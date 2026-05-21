@@ -1,0 +1,26 @@
+---
+- name: delegate-runonce 데모 — delegate_to 와 run_once
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  tasks:
+    - name: 1) ansible 컨트롤러(localhost) 에서 현재 시각 받아오기
+      ansible.builtin.command: date "+%Y-%m-%dT%H:%M:%S"
+      register: ctrl_time
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
+    - name: 2) 받아온 시각을 모든 타겟에 동일하게 전파
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 컨트롤러 시각 = {{ ctrl_time.stdout }}"
+
+    - name: 3) inventory 전체 중 한 번만 실행되는 task (run_once)
+      ansible.builtin.debug:
+        msg: "이 메시지는 inventory 전체에 대해 단 한 번만 — 담당 호스트: {{ inventory_hostname }}"
+      run_once: true
+
+    - name: 4) 대조용 — 각 타겟에서 따로 실행
+      ansible.builtin.debug:
+        msg: "이건 모든 호스트에서 따로 출력됨 — {{ inventory_hostname }}"

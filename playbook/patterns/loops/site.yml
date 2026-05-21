@@ -1,0 +1,47 @@
+---
+- name: loops 데모 — loop 로 여러 파일·항목 일괄 처리 + loop_control
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars:
+    loop_dir: /tmp/loop-demo
+
+  tasks:
+    - name: 작업 디렉토리 준비
+      ansible.builtin.file:
+        path:  "{{ loop_dir }}"
+        state: directory
+        mode:  '0755'
+
+    - name: 단순 리스트 loop — 같은 task 를 항목마다 반복
+      ansible.builtin.file:
+        path:  "{{ loop_dir }}/{{ item }}.flag"
+        state: touch
+        mode:  '0644'
+      loop:
+        - alpha
+        - beta
+        - gamma
+
+    - name: dict 리스트 loop — 항목 안에 여러 키
+      ansible.builtin.copy:
+        content: "{{ item.body }}\n"
+        dest:    "{{ loop_dir }}/{{ item.name }}.txt"
+        mode:    '0644'
+      loop:
+        - { name: hello, body: "안녕하세요" }
+        - { name: bye,   body: "잘 가요"   }
+        - { name: thx,   body: "고맙습니다" }
+      loop_control:
+        label: "{{ item.name }}"   # 출력 라벨을 짧게 — 전체 dict 가 안 찍힘
+
+    - name: 결과 확인
+      ansible.builtin.find:
+        paths:    "{{ loop_dir }}"
+        patterns: "*"
+      register: found
+
+    - name: 만들어진 파일 목록 출력
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ found.matched }}개 — {{ found.files | map(attribute='path') | sort | list }}"

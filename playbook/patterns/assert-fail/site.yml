@@ -1,0 +1,32 @@
+---
+- name: assert-fail 데모 — 사전 조건 검증 + 명시적 중단
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars:
+    # 이 값을 -e env=<값> 으로 덮어쓰면서 시도해보면 흐름이 잘 보인다.
+    env: ""
+
+  tasks:
+    - name: env 변수가 비어있지 않은지 검증 (assert)
+      ansible.builtin.assert:
+        that:
+          - env | length > 0
+        fail_msg:    "필수 변수 env 가 비어 있음 — -e env=dev|staging|prod 로 전달 필요"
+        success_msg: "env={{ env }} 확인 완료"
+
+    - name: env 가 허용된 값 중 하나인지 검증
+      ansible.builtin.assert:
+        that:
+          - env in ['dev', 'staging', 'prod']
+        fail_msg: "env 값이 유효하지 않음 (dev/staging/prod 중 하나, 현재: {{ env }})"
+
+    - name: prod 환경이 아니면 명시적 중단 (fail)
+      ansible.builtin.fail:
+        msg: "이 playbook 은 prod 전용 — 현재 env={{ env }} (assert 와 달리 fail 은 무조건 중단)"
+      when: env != 'prod'
+
+    - name: 모든 검증 통과 후의 본 작업
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 검증 통과 — env={{ env }} 환경에서 실제 작업 실행 가능"

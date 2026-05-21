@@ -1,0 +1,27 @@
+---
+- name: handlers 데모 — 파일이 바뀌었을 때만 핸들러 호출
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars:
+    config_path: /tmp/handlers-demo.conf
+    # 이 값을 바꿔서 다시 돌리면 handler 가 호출되는 것을 볼 수 있다.
+    config_body: "key=value"
+
+  tasks:
+    - name: 설정 파일 배치
+      ansible.builtin.copy:
+        content: "{{ config_body }}\n"
+        dest:    "{{ config_path }}"
+        mode:    '0644'
+      notify: log config changed
+
+    - name: 결과 출력
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 설정 파일 {{ config_path }} 적용 시도 완료"
+
+  handlers:
+    - name: log config changed
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 설정이 바뀌어서 핸들러 호출됨 (실제로는 여기서 service 재시작)"

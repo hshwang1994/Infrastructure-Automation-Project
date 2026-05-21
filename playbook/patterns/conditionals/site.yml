@@ -1,0 +1,39 @@
+---
+- name: conditionals 데모 — when 으로 OS family·값·결과 기반 분기
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  tasks:
+    - name: RedHat 계열에서만 실행
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: RHEL 계열 ({{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }})"
+      when: ansible_facts.os_family == 'RedHat'
+
+    - name: Debian 계열에서만 실행
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: Debian 계열 ({{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }})"
+      when: ansible_facts.os_family == 'Debian'
+
+    - name: 그 외 OS
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 기타 OS family — {{ ansible_facts.os_family }}"
+      when: ansible_facts.os_family not in ['RedHat', 'Debian']
+
+    - name: 메모리 8 GB 이상에서만 실행 (값 기반 조건)
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 메모리 충분 ({{ ansible_facts.memtotal_mb }} MB)"
+      when: ansible_facts.memtotal_mb >= 8192
+
+    - name: 메모리 8 GB 미만에서만 실행
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 메모리 부족 ({{ ansible_facts.memtotal_mb }} MB)"
+      when: ansible_facts.memtotal_mb < 8192
+
+    - name: 여러 조건 AND (RHEL 9 + 64-bit)
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: RHEL 9 x86_64 환경"
+      when:
+        - ansible_facts.distribution == 'RedHat'
+        - ansible_facts.distribution_major_version == '9'
+        - ansible_facts.architecture == 'x86_64'

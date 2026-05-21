@@ -1,0 +1,17 @@
+---
+- name: import-include 데모 — task 파일 분리·재사용 (정적 vs 동적)
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  tasks:
+    - name: 1) import_tasks — 정적, playbook 파싱 시점에 합쳐짐
+      ansible.builtin.import_tasks: imported.yml
+
+    - name: 2) include_tasks — 동적, 실행 시점에 평가 / 변수·loop 사용 가능
+      ansible.builtin.include_tasks: included.yml
+      loop:
+        - dev
+        - prod
+      loop_control:
+        loop_var: env_name
