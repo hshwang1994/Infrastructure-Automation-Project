@@ -1,6 +1,6 @@
 # Jenkinsfile 가이드
 
-실제 예시는 `playbook/linux/` 와 `playbook/windows/` 안의 각 작업 디렉토리 Jenkinsfile 참고.
+실제 예시는 `playbook/tasks/linux/` 와 `playbook/tasks/windows/` 안의 각 작업 디렉토리 Jenkinsfile 참고.
 
 ## 필수 구조
 
@@ -53,11 +53,11 @@ agent { label "${params.loc} && ${params.target_type}" }
 
 ### environment 3개
 
-| 변수 | 누가 쓰나 |
-|------|----------|
-| `INVENTORY_JSON` | `inventory/my_inventory.sh` 가 호스트 목록을 읽을 때 |
-| `TARGET_TYPE` | `inventory/my_inventory.sh` 가 라우팅 (linux 면 hostname, redfish 면 bmc_ip) 결정할 때 |
-| `REPO_ROOT` | playbook 안에서 `vault/`, `roles/` 같은 저장소 내 파일을 절대 경로로 참조할 때. Jenkins 가 빌드마다 워크스페이스 경로를 바꾸므로 상대 경로는 깨지기 쉬움. |
+| 변수               | 사용처                                                                                                       |
+| :----------------- | :----------------------------------------------------------------------------------------------------------- |
+| `INVENTORY_JSON`   | `inventory/my_inventory.sh` 가 호스트 목록을 읽을 때                                                         |
+| `TARGET_TYPE`      | `inventory/my_inventory.sh` 가 라우팅(linux 면 hostname, redfish 면 bmc_ip) 결정할 때                        |
+| `REPO_ROOT`        | playbook 안에서 `vault/`, `roles/` 같은 저장소 내 파일을 절대 경로로 참조할 때. Jenkins 가 빌드마다 워크스페이스 경로를 바꾸므로 상대 경로는 깨지기 쉬움. |
 
 ### inventory 파라미터 생략
 

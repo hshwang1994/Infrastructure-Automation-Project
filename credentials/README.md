@@ -6,12 +6,12 @@
 
 ## 파일 목록
 
-| 평문 (이 디렉토리) | 암호화 (vault/) | target_type |
-|------|------|------|
-| `linux.yml` | `../vault/linux.yml` | linux |
-| `windows.yml` | `../vault/windows.yml` | windows |
-| `esxi.yml` | `../vault/esxi.yml` | esxi |
-| `redfish.yml` | `../vault/redfish.yml` | redfish |
+| 평문 (이 디렉토리) | 암호화 (vault/)         | target_type |
+| :----------------- | :---------------------- | :---------- |
+| `linux.yml`        | `../vault/linux.yml`    | linux       |
+| `windows.yml`      | `../vault/windows.yml`  | windows     |
+| `esxi.yml`         | `../vault/esxi.yml`     | esxi        |
+| `redfish.yml`      | `../vault/redfish.yml`  | redfish     |
 
 각 파일에는 `ansible_user`, `ansible_password` (linux 는 sudo 용 `ansible_become_password` 도) 만 담는다. WinRM 의 transport / port 같은 비밀번호가 아닌 설정은 vault 가 아니라 playbook 의 `vars` 블록에 둔다.
 
@@ -36,11 +36,11 @@
 
 Manage Jenkins → Credentials → System → Global → Add Credentials
 
-| 항목 | 값 |
-|------|-----|
-| Kind | **Secret text** |
-| ID | **`ansible-vault-password`** |
-| Secret | 위 흐름의 2번에서 입력한 vault 비밀번호 |
+| 항목   | 값                                            |
+| :----- | :-------------------------------------------- |
+| Kind   | Secret text                                   |
+| ID     | `ansible-vault-password`                      |
+| Secret | 위 흐름의 2번에서 입력한 vault 비밀번호       |
 
 이 ID 가 Jenkinsfile 의 `vaultCredentialsId: 'ansible-vault-password'` 와 정확히 일치해야 한다.
 

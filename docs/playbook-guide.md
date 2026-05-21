@@ -4,12 +4,12 @@
 
 ## target_type 별 기본값
 
-| target_type | connection | gather_facts | become | vault 파일 |
-|------------|-----------|--------------|--------|-----------|
-| linux | ssh | true | true (sudo) | `vault/linux.yml` |
-| windows | winrm | true | false | `vault/windows.yml` |
-| esxi | ssh | true | false | `vault/esxi.yml` |
-| redfish | local | false | false | `vault/redfish.yml` |
+| target_type | connection | gather_facts | become       | vault 파일           |
+| :---------- | :--------- | :----------: | :----------- | :------------------- |
+| linux       | ssh        | true         | true (sudo)  | `vault/linux.yml`    |
+| windows     | winrm      | true         | false        | `vault/windows.yml`  |
+| esxi        | ssh        | true         | false        | `vault/esxi.yml`     |
+| redfish     | local      | false        | false        | `vault/redfish.yml`  |
 
 `gather_facts` 는 OS 가 아직 살아있지 않은 상태(킥스타트 직후 등) 에서는 `false` 로 둔다. setup 모듈이 OS 정보를 못 받아오면 시간만 낭비.
 
@@ -47,10 +47,10 @@
 
 target_type 마다 다르다:
 
-| target_type | 이름 (inventory_hostname) | 접속 IP (ansible_host) | 왜 |
-|---|---|---|---|
-| linux / windows / esxi | `hostname` 값 (예: WEB-01) | `service_ip` 값 | OS 가 있는 서버는 hostname 으로 식별하는 게 자연스럽다 |
-| redfish | `bmc_ip` 값 (예: 10.0.1.1) | `bmc_ip` 값 | BMC 에는 hostname 이 없으니 IP 가 곧 이름 |
+| target_type            | 이름 (`inventory_hostname`) | 접속 IP (`ansible_host`) | 이유                                                       |
+| :--------------------- | :-------------------------- | :----------------------- | :--------------------------------------------------------- |
+| linux / windows / esxi | `hostname` 값 (예: WEB-01)  | `service_ip` 값          | OS 가 있는 서버는 hostname 으로 식별하는 게 자연스럽다     |
+| redfish                | `bmc_ip` 값 (예: 10.0.1.1)  | `bmc_ip` 값              | BMC 에는 hostname 이 없으니 IP 가 곧 이름                  |
 
 playbook 에서:
 - `{{ inventory_hostname }}` → 그 호스트의 "이름"

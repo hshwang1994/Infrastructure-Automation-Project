@@ -87,11 +87,11 @@ ansiblePlaybook(
 
 ansible 은 여러 위치에 ansible.cfg 가 있어도 **병합하지 않고 가장 높은 우선순위 하나만** 사용한다.
 
-| 우선순위 | 경로 |
-|---------|------|
-| 1 | `ANSIBLE_CONFIG` 환경변수가 가리키는 경로 |
-| 2 | 현재 디렉토리의 `ansible.cfg` |
-| 3 | `~/.ansible.cfg` |
-| 4 | `/etc/ansible/ansible.cfg` |
+| 우선순위 | 경로                                       |
+| :------: | :----------------------------------------- |
+| 1        | `ANSIBLE_CONFIG` 환경변수가 가리키는 경로  |
+| 2        | 현재 디렉토리의 `ansible.cfg`              |
+| 3        | `~/.ansible.cfg`                           |
+| 4        | `/etc/ansible/ansible.cfg`                 |
 
 이 저장소 루트에는 `ansible.cfg` 를 두지 않는다 — 만약 두면 Jenkins 가 checkout 한 디렉토리에서 ansible 을 실행할 때 그게 우선되어 Agent 의 `/etc/ansible/ansible.cfg` 가 무시된다.

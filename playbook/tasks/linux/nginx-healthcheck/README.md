@@ -11,11 +11,11 @@ nginx 를 설치하고 `/healthz → 200 ok` 응답하는 default_server conf �
 
 ## stage / tag 매핑
 
-| Jenkins stage | tag | 무엇을 |
-|---------------|-----|-------|
-| Install | `install` | nginx 패키지 설치 |
-| Configure | `configure` | `/etc/nginx/conf.d/healthcheck.conf` 배치 + nginx 시작/활성화 (변경 시 notify) |
-| Verify | `verify` | `http://localhost/healthz` 호출 → status_code 200 확인 + 응답 본문 출력 |
+| Jenkins stage | tag         | 내용                                                                                |
+| :------------ | :---------- | :---------------------------------------------------------------------------------- |
+| Install       | `install`   | nginx 패키지 설치                                                                   |
+| Configure     | `configure` | `/etc/nginx/conf.d/healthcheck.conf` 배치 + nginx 시작·활성화 (변경 시 notify)      |
+| Verify        | `verify`    | `http://localhost/healthz` 호출 → status_code 200 확인 + 응답 본문 출력             |
 
 `ansible-playbook site.yml --tags install` 같은 식으로 부분만 돌리는 것도 가능.
 

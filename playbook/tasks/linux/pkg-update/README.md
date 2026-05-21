@@ -11,11 +11,11 @@ RHEL 계열은 dnf 보안 업데이트, Debian 계열은 apt safe-upgrade. 사�
 
 ## stage 흐름
 
-| stage | playbook | 무엇을 |
-|-------|----------|-------|
-| Pre-check | `pre.yml` | 루트 파티션 1GB 이상 여유 확인, 패키지 매니저 식별 출력 |
-| Update | `update.yml` | RHEL: `dnf security`, Debian: `apt upgrade: safe` |
-| Post-verify | `post.yml` | `/var/run/reboot-required` 확인, sshd active 확인, 결과 요약 |
+| stage       | playbook       | 내용                                                            |
+| :---------- | :------------- | :-------------------------------------------------------------- |
+| Pre-check   | `pre.yml`      | 루트 파티션 1 GB 이상 여유 확인, 패키지 매니저 식별 출력        |
+| Update      | `update.yml`   | RHEL: `dnf security`, Debian: `apt upgrade: safe`               |
+| Post-verify | `post.yml`     | `/var/run/reboot-required` 확인, sshd active 확인, 결과 요약    |
 
 ## 변경되는 것
 

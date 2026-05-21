@@ -6,11 +6,11 @@
 
 ## 데모 목록
 
-| 디렉토리 | 보여주는 패턴 | 실제 작업에서 같은 패턴을 쓰는 예시 |
-|---------|--------------|----------------------------------|
-| [`roles/`](roles/) | Role 디렉토리 구조 (`roles/{name}/tasks,handlers,defaults,templates`) | [`tasks/linux/baseline/`](../tasks/linux/baseline/) |
-| [`block-rescue/`](block-rescue/) | `block` → `rescue` → `always` 로 실패 시 자동 롤백 | [`tasks/linux/sshd-safe-reload/`](../tasks/linux/sshd-safe-reload/) |
-| [`tags/`](tags/) | `tags` 로 같은 playbook 을 단계별 부분 실행 | [`tasks/linux/nginx-healthcheck/`](../tasks/linux/nginx-healthcheck/) |
+| 디렉토리                          | 보여주는 패턴                                                       | 실제 작업에서 같은 패턴을 쓰는 예시                                |
+| :-------------------------------- | :------------------------------------------------------------------ | :----------------------------------------------------------------- |
+| [`roles/`](roles/)                | Role 디렉토리 구조 (`roles/{name}/{tasks,handlers,defaults,templates}`) | [`tasks/linux/baseline/`](../tasks/linux/baseline/)             |
+| [`block-rescue/`](block-rescue/)  | `block` → `rescue` → `always` 로 실패 시 자동 롤백                  | [`tasks/linux/sshd-safe-reload/`](../tasks/linux/sshd-safe-reload/) |
+| [`tags/`](tags/)                  | `tags` 로 같은 playbook 을 단계별 부분 실행                          | [`tasks/linux/nginx-healthcheck/`](../tasks/linux/nginx-healthcheck/) |
 
 ## 직접 실행해보기
 

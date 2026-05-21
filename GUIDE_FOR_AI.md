@@ -1,6 +1,8 @@
 # GUIDE FOR AI
 
-AI 한테 이 저장소의 컨벤션을 따라 Jenkinsfile / Playbook 을 만들거나 고치게 시킬 때, 프롬프트에 같이 넣어주는 입구 파일.
+> **이 파일이 뭐냐**: AI (Claude / Copilot / Cursor 등) 한테 이 저장소의 컨벤션대로 Jenkinsfile · Playbook 을 만들거나 수정시킬 때, **프롬프트에 같이 첨부하는 입구 문서**. 사람이 직접 읽어도 "어디부터 봐야 하는지" 가이드가 되도록 구성돼 있다.
+
+저장소 전체 안내는 [`README.md`](README.md). 이 파일은 그 README 가 가리키는 세부 문서·예시 디렉토리를 **AI 가 어떤 순서로 흡수해야 하는지** 만 정리한다.
 
 ## 읽는 순서
 
