@@ -14,37 +14,34 @@ pipeline {
     }
 
     stages {
-        stage('Install') {
+        stage('Pre-check') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/tags/site.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/pkg-update/pre.yml",
                     vaultCredentialsId: 'ansible-vault-password',
-                    tags              : 'install',
                     colorized         : true
                 )
             }
         }
 
-        stage('Configure') {
+        stage('Update') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/tags/site.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/pkg-update/update.yml",
                     vaultCredentialsId: 'ansible-vault-password',
-                    tags              : 'configure',
                     colorized         : true
                 )
             }
         }
 
-        stage('Verify') {
+        stage('Post-verify') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/tags/site.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/pkg-update/post.yml",
                     vaultCredentialsId: 'ansible-vault-password',
-                    tags              : 'verify',
                     colorized         : true
                 )
             }

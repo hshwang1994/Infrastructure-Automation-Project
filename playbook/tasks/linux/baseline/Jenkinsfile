@@ -18,7 +18,7 @@ pipeline {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/windows/powershell/site.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/baseline/site.yml",
                     vaultCredentialsId: 'ansible-vault-password',
                     colorized         : true
                 )

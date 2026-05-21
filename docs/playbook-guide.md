@@ -1,6 +1,6 @@
 # Playbook 가이드
 
-실제 예시는 `playbook/linux/` 와 `playbook/windows/` 안의 각 작업 디렉토리 site.yml 참고.
+실제 예시는 `playbook/tasks/linux/` 와 `playbook/tasks/windows/` 안의 각 작업 디렉토리 site.yml 참고. Ansible 문법 패턴(roles, block/rescue, tags) 자체를 보고 싶다면 `playbook/patterns/`.
 
 ## target_type 별 기본값
 
@@ -79,7 +79,7 @@ playbook 에서:
 ## 직접 실행 (Jenkins 없이 로컬에서)
 
 ```
-ansible-playbook playbook/linux/ntp/site.yml --ask-vault-pass
+ansible-playbook playbook/tasks/linux/ntp/site.yml --ask-vault-pass
 ```
 
 `--ask-vault-pass` 가 vault 비밀번호를 인터랙티브로 묻는다. 자동화하려면 `--vault-password-file <파일>` 또는 `ANSIBLE_VAULT_PASSWORD_FILE` 환경변수.

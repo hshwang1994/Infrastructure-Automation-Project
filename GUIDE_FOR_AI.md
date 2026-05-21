@@ -7,16 +7,17 @@ AI 한테 이 저장소의 컨벤션을 따라 Jenkinsfile / Playbook 을 만들
 1. `docs/jenkinsfile-guide.md` — Jenkinsfile 규칙과 그 이유
 2. `docs/playbook-guide.md` — Playbook 규칙과 hostvars 사용법
 3. `docs/ansible-cfg-guide.md` — Agent 한 번 셋업 (ansible.cfg + sshpass + inventory 배치)
-4. `playbook/linux/` 와 `playbook/windows/` 안의 작업 디렉토리들 — 실제 동작하는 Jenkinsfile + site.yml 예시
+4. `playbook/tasks/linux/` 와 `playbook/tasks/windows/` 안의 작업 디렉토리들 — 실제 동작하는 Jenkinsfile + site.yml + README 예시. Ansible 문법 자체가 헷갈리면 `playbook/patterns/` (roles 구조, block-rescue, tags 데모).
 5. `inventory/my_inventory.sh` 상단 docstring — 포털 JSON → ansible inventory 변환 동작
 6. `credentials/README.md`, `vault/README.md` — 자격증명이 평문 → 암호화 → 복호화 거치는 흐름
 
 ## 새 작업 만들기
 
-1. `playbook/{linux|windows}/{작업명}/` 디렉토리 생성. 예: `playbook/linux/ntp-strict/`
-2. 같은 target_type 의 기존 예시 디렉토리를 통째로 복사
+1. `playbook/tasks/{linux|windows}/{작업명}/` 디렉토리 생성. 예: `playbook/tasks/linux/ntp-strict/`
+2. 같은 target_type 의 기존 `tasks/` 예시 디렉토리를 통째로 복사
 3. 새 디렉토리의 `Jenkinsfile` 안 `playbook:` 경로를 새 디렉토리에 맞게 수정
 4. 새 디렉토리의 `site.yml` (또는 다단계면 `pre.yml` / `update.yml` / `post.yml`) 의 `tasks` 만 새 작업 내용으로 바꿈
+5. 새 디렉토리의 `README.md` 도 새 작업 내용에 맞게 바꿈 (목적 + 보여주는 패턴 + task 흐름)
 
 target_type 별 connection / gather_facts / become 기본값은 `docs/playbook-guide.md` 의 표.
 
@@ -34,7 +35,7 @@ target_type 별 connection / gather_facts / become 기본값은 `docs/playbook-g
 
 ```
 이 저장소(Infrastructure-Automation-Project)의 컨벤션을 따라
-playbook/linux/{작업명}/ 에 Jenkinsfile 과 site.yml 을 만들어줘.
+playbook/tasks/linux/{작업명}/ 에 Jenkinsfile, site.yml, README.md 를 만들어줘.
 
 {작업 내용 설명}
 

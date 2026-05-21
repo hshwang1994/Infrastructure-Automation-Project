@@ -1,0 +1,11 @@
+---
+- name: 인사 메시지 출력
+  ansible.builtin.debug:
+    msg: "{{ welcome_message }} — host={{ inventory_hostname }}"
+
+- name: 기록 파일 작성 (notify 로 핸들러 호출)
+  ansible.builtin.copy:
+    content: "{{ welcome_message }}\n"
+    dest: /tmp/welcome.txt
+    mode: '0644'
+  notify: log welcome

@@ -1,0 +1,4 @@
+---
+- name: log welcome
+  ansible.builtin.debug:
+    msg: "welcome.txt 갱신됨 ({{ inventory_hostname }})"

@@ -14,34 +14,37 @@ pipeline {
     }
 
     stages {
-        stage('Pre-check') {
+        stage('Install') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/pre.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/nginx-healthcheck/site.yml",
                     vaultCredentialsId: 'ansible-vault-password',
+                    tags              : 'install',
                     colorized         : true
                 )
             }
         }
 
-        stage('Update') {
+        stage('Configure') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/update.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/nginx-healthcheck/site.yml",
                     vaultCredentialsId: 'ansible-vault-password',
+                    tags              : 'configure',
                     colorized         : true
                 )
             }
         }
 
-        stage('Post-verify') {
+        stage('Verify') {
             steps {
                 ansiblePlaybook(
                     installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/linux/pkg-update/post.yml",
+                    playbook          : "${WORKSPACE}/playbook/tasks/linux/nginx-healthcheck/site.yml",
                     vaultCredentialsId: 'ansible-vault-password',
+                    tags              : 'verify',
                     colorized         : true
                 )
             }

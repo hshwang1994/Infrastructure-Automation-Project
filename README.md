@@ -11,9 +11,11 @@
 │   ├── jenkinsfile-guide.md       Jenkinsfile 규칙
 │   ├── playbook-guide.md          Playbook 규칙
 │   └── ansible-cfg-guide.md       Agent 측 ansible.cfg 표준
-├── playbook/                       작동하는 예시 (Jenkinsfile + site.yml 쌍)
-│   ├── linux/                      linux target_type 예시들 (ntp, pkg-update, disk-check, roles, block-rescue, tags)
-│   └── windows/                    windows target_type 예시들 (service, powershell)
+├── playbook/                       작동하는 예시
+│   ├── tasks/                      실제 운영 작업 (Jenkinsfile + playbook + README 한 세트)
+│   │   ├── linux/                  ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
+│   │   └── windows/                service-check, sysinfo
+│   └── patterns/                   Ansible 문법 데모 (roles 구조, block-rescue, tags) — 학습용
 ├── inventory/
 │   └── my_inventory.sh             동적 인벤토리 (포털 JSON → Ansible inventory)
 ├── credentials/                    평문 자격증명 원본 (사람이 편집)
@@ -38,7 +40,9 @@
 
 ## 새 작업 만들기
 
-`playbook/{linux|windows}/{작업명}/` 디렉토리를 만들고 그 안에 `Jenkinsfile` + `site.yml` 을 둔다. 가장 비슷한 기존 예시 디렉토리를 통째로 복사해서 시작하면 된다.
+`playbook/tasks/{linux|windows}/{작업명}/` 디렉토리를 만들고 그 안에 `Jenkinsfile` + `site.yml` + `README.md` 를 둔다. 가장 비슷한 기존 `tasks/` 디렉토리를 통째로 복사해서 시작하면 된다.
+
+Ansible 문법 자체 (Role 디렉토리, block/rescue, tags) 가 헷갈리면 `playbook/patterns/` 에 작은 데모 있음.
 
 ## 자격증명 초기 설정 (1회)
 
