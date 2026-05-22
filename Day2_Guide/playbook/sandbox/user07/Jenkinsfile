@@ -1,0 +1,39 @@
+pipeline {
+    agent { label "${params.loc} && ${params.target_type}" }
+
+    parameters {
+        string(name: 'loc',            defaultValue: 'ich',                                                            description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type',    defaultValue: 'linux',                                                          description: '대상 종류 — 이 슬롯은 linux 고정')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]',     description: '타겟 호스트 JSON 배열 — 기본값은 사내 linux 데모 호스트')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}/Day2_Guide"
+    }
+
+    stages {
+        stage('Builtin (ansible.builtin.copy)') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/sandbox/user07/main.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+
+        stage('Shell (ansible.builtin.shell)') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/sandbox/user07/post.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+    }
+}
