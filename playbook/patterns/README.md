@@ -42,10 +42,14 @@
 
 ## 직접 실행해보기
 
-각 데모는 ansible-playbook 으로 단독 실행 가능:
+각 데모는 동적 인벤토리(`inventory/my_inventory.sh`) + 환경변수 한 쌍만 있으면 단독 실행할 수 있다.
 
 ```bash
-ansible-playbook -i 인벤토리 playbook/patterns/{이름}/site.yml
+export TARGET_TYPE=linux
+export INVENTORY_JSON='[{"hostname":"rhel9-dev-01","service_ip":"192.168.0.10"}]'
+
+ansible-playbook -i inventory/my_inventory.sh \
+  playbook/patterns/{이름}/site.yml
 ```
 
-각 README 의 "직접 돌려보기" 섹션에 회차별로 무엇이 어떻게 달라지는지 적혀 있다.
+각 README 의 "직접 돌려보기" 섹션에 실행 전 확인 사항과 회차별로 무엇이 어떻게 달라지는지 적혀 있다.
