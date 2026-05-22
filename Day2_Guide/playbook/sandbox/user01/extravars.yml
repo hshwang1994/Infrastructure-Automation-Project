@@ -1,0 +1,31 @@
+---
+# ExtraVars demo
+#   Jenkinsfile 이 ansible 에 두 채널로 넘긴 값을 비교 출력한다.
+#     1) extraVars (Map)  — `ansiblePlaybook(extraVars: [...])`
+#     2) environment      — Jenkinsfile `environment {}` 의 값을 lookup('env','...')
+#
+#   hosts: localhost / connection: local 로 ansible 컨트롤러(=Jenkins agent)
+#   에서 바로 실행 → SSH·vault 불필요. 빌드가 빠르고 안전.
+- name: ExtraVars demo — Jenkins → ansible 변수 전달
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: extraVars (Map) 으로 받은 값
+      ansible.builtin.debug:
+        msg:
+          - "agent_loc    = {{ agent_loc }}"
+          - "agent_type   = {{ agent_type }}"
+          - "build_number = {{ build_number }}"
+          - "job_name     = {{ job_name }}"
+          - "node_name    = {{ node_name }}"
+
+    - name: environment 채널 (lookup) 로 같은 정보 비교
+      ansible.builtin.debug:
+        msg:
+          - "BUILD_NUMBER (env) = {{ lookup('env', 'BUILD_NUMBER') }}"
+          - "JOB_NAME     (env) = {{ lookup('env', 'JOB_NAME') }}"
+          - "NODE_NAME    (env) = {{ lookup('env', 'NODE_NAME') }}"
+          - "WORKSPACE    (env) = {{ lookup('env', 'WORKSPACE') }}"
+          - "REPO_ROOT    (env) = {{ lookup('env', 'REPO_ROOT') }}"

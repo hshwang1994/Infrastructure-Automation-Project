@@ -10,28 +10,38 @@
 
 ```
 user01/
-├── Jenkinsfile     2 stage (Builtin / Shell)
-├── main.yml        /tmp/practice.txt 작성 (ansible.builtin.copy)
-├── post.yml        같은 파일을 쉘 명령(test/cat)으로 검증 (ansible.builtin.shell)
-└── README.md       슬롯 안내 (이 파일의 짧은 stub)
+├── Jenkinsfile      3 stage (Builtin / Shell / ExtraVars)
+├── main.yml         /tmp/practice.txt 작성 (ansible.builtin.copy)
+├── post.yml         같은 파일을 쉘 명령(test/cat)으로 검증 (ansible.builtin.shell)
+├── extravars.yml    Jenkinsfile 의 params·env 를 ansible 변수로 받아 debug
+└── README.md        슬롯 안내 (이 파일의 짧은 stub)
 ```
 
 ## 대상
 
-**linux** 호스트. 환경 검증은 따로 안 하므로 (Pre-check stage 없음) `inventory_json` 의 호스트는 SSH/sudo 가 가능한 일반 linux 면 됨.
+**linux** 호스트 — Builtin / Shell stage. 환경 검증은 따로 안 하므로 (Pre-check stage 없음) `inventory_json` 의 호스트는 SSH/sudo 가 가능한 일반 linux 면 됨.
 
-## 2 stage 구성
+**ExtraVars stage** 는 `hosts: localhost` / `connection: local` 로 ansible 컨트롤러 (= Jenkins agent) 에서 실행하므로 SSH·vault 불필요.
 
-| stage      | playbook    | 모듈                       | 내용                                                             |
-| :--------- | :---------- | :------------------------- | :--------------------------------------------------------------- |
-| Builtin    | `main.yml`  | `ansible.builtin.copy`     | `/tmp/practice.txt` 에 메시지 + 타임스탬프 작성 (고수준 모듈)    |
-| Shell      | `post.yml`  | `ansible.builtin.shell`    | 같은 파일을 `test -f` + `cat` 쉘 명령으로 존재·내용 확인         |
+## 3 stage 구성
 
-두 stage 모두 `/tmp/` 영역만 건드려서 안전하게 멱등. 반복 실행 OK.
+| stage      | playbook         | 모듈                       | 내용                                                                         |
+| :--------- | :--------------- | :------------------------- | :--------------------------------------------------------------------------- |
+| Builtin    | `main.yml`       | `ansible.builtin.copy`     | `/tmp/practice.txt` 에 메시지 + 타임스탬프 작성 (고수준 모듈)                |
+| Shell      | `post.yml`       | `ansible.builtin.shell`    | 같은 파일을 `test -f` + `cat` 쉘 명령으로 존재·내용 확인                     |
+| ExtraVars  | `extravars.yml`  | `ansible.builtin.debug`    | Jenkinsfile 의 `params` / `env` 를 ansible 변수로 받아 두 채널 비교 출력     |
 
-## 왜 2 stage 인가
+세 stage 모두 `/tmp/` 영역만 건드리거나 read-only 라 안전하게 멱등. 반복 실행 OK.
 
-Jenkins 의 다단계 pipeline 흐름과 함께 **같은 결과(파일 작성·확인)를 빌트인 모듈 vs 쉘 명령 두 방식으로 처리하는 차이**를 비교해볼 수 있게 일부러 쪼갰다. `main.yml` (builtin) 과 `post.yml` (shell) 을 나란히 읽으면, 모듈 방식의 멱등성·에러처리·로그가 왜 더 깔끔한지 감 잡기 좋다.
+## 왜 3 stage 인가
+
+각 stage 가 서로 다른 "ansible 사용 패턴" 을 하나씩 보여준다:
+
+1. **Builtin (`main.yml`)** — 고수준 모듈의 멱등성·자동 권한 처리
+2. **Shell (`post.yml`)** — shell 명령으로 같은 결과를 만들었을 때의 차이 (로그·에러·idempotency)
+3. **ExtraVars (`extravars.yml`)** — Jenkins → ansible 변수 전달 (extraVars Map 채널 + environment lookup 채널 비교)
+
+`main.yml` ↔ `post.yml` 을 나란히 읽으면 모듈 vs shell 차이를, `extravars.yml` 은 Jenkinsfile 의 `parameters` / `environment` 값이 어떻게 playbook 안 변수로 들어오는지를 한 번에 익힐 수 있다.
 
 ## 기본 파라미터
 
