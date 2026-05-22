@@ -2,15 +2,9 @@ pipeline {
     agent { label "${params.loc} && ${params.target_type}" }
 
     parameters {
-        string(name: 'loc',
-               defaultValue: 'ich',
-               description: 'Agent 위치 (ich | chj | yi)')
-        string(name: 'target_type',
-               defaultValue: 'linux',
-               description: '대상 종류 — 이 슬롯은 RHEL 9 기준 linux 고정')
-        text(  name: 'inventory_json',
-               defaultValue: '[{"hostname":"rhel9-dev-01","service_ip":"10.100.64.169"}]',
-               description: '타겟 호스트 JSON 배열 — 기본값은 사내 RHEL 9 데모 호스트')
+        string(name: 'loc',            defaultValue: 'ich',                                                            description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type',    defaultValue: 'linux',                                                          description: '대상 종류 — 이 슬롯은 linux 고정')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]',     description: '타겟 호스트 JSON 배열 — 기본값은 사내 linux 데모 호스트')
     }
 
     environment {
@@ -20,17 +14,6 @@ pipeline {
     }
 
     stages {
-        stage('Pre-check') {
-            steps {
-                ansiblePlaybook(
-                    installation      : 'ansible',
-                    playbook          : "${WORKSPACE}/playbook/sandbox/user02/pre.yml",
-                    vaultCredentialsId: 'ansible-vault-password',
-                    colorized         : true
-                )
-            }
-        }
-
         stage('Builtin (ansible.builtin.copy)') {
             steps {
                 ansiblePlaybook(

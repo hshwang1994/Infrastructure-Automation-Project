@@ -13,7 +13,7 @@
 
 | 목적                              | 가장 먼저 볼 곳                                                 |
 | :-------------------------------- | :-------------------------------------------------------------- |
-| Ansible / Jenkins 손에 익히기     | [`playbook/sandbox/README.md`](playbook/sandbox/README.md) — RHEL 9 기준 3 stage 연습 슬롯 |
+| Ansible / Jenkins 손에 익히기     | [`playbook/sandbox/README.md`](playbook/sandbox/README.md) — linux 기준 2 stage 연습 슬롯 |
 | 새 운영 작업 만들기               | [`playbook/README.md`](playbook/README.md) — 비슷한 작업 예시 고르기 |
 | Ansible 문법 빠르게 복습          | [`playbook/patterns/README.md`](playbook/patterns/README.md) — roles / block-rescue / tags 데모 |
 | Jenkinsfile 규칙·구조             | [`docs/jenkinsfile-guide.md`](docs/jenkinsfile-guide.md)        |
@@ -48,7 +48,7 @@
 │   │   ├── linux/                 ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
 │   │   └── windows/               service-check, sysinfo
 │   ├── patterns/                  Ansible 문법 데모 (roles, block-rescue, tags) — 학습용
-│   └── sandbox/                   연습 슬롯 user01~user10 (RHEL 9, 3 stage 템플릿)
+│   └── sandbox/                   연습 슬롯 user01~user10 (linux, 2 stage 템플릿)
 ├── inventory/
 │   └── my_inventory.sh            동적 인벤토리 (포털 JSON → Ansible inventory)
 ├── credentials/                   평문 자격증명 원본 (사람이 편집)

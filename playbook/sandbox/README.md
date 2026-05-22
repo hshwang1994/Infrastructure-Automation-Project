@@ -10,8 +10,7 @@
 
 ```
 user01/
-├── Jenkinsfile     3 stage (Pre-check / Builtin / Shell)
-├── pre.yml         RHEL 9 환경 검증 (ansible.builtin.assert)
+├── Jenkinsfile     2 stage (Builtin / Shell)
 ├── main.yml        /tmp/practice.txt 작성 (ansible.builtin.copy)
 ├── post.yml        같은 파일을 쉘 명령(test/cat)으로 검증 (ansible.builtin.shell)
 └── README.md       슬롯 안내 (이 파일의 짧은 stub)
@@ -19,19 +18,18 @@ user01/
 
 ## 대상
 
-**RHEL 9 (9.10) Linux** 만. `pre.yml` 의 assert 가 RHEL 9 이 아니면 fail 시켜서 환경 실수 방지.
+**linux** 호스트. 환경 검증은 따로 안 하므로 (Pre-check stage 없음) `inventory_json` 의 호스트는 SSH/sudo 가 가능한 일반 linux 면 됨.
 
-## 3 stage 구성
+## 2 stage 구성
 
 | stage      | playbook    | 모듈                       | 내용                                                             |
 | :--------- | :---------- | :------------------------- | :--------------------------------------------------------------- |
-| Pre-check  | `pre.yml`   | `ansible.builtin.assert`   | RHEL 9 환경 검증 + 호스트 정보 (OS, kernel, CPU, MEM) 출력       |
 | Builtin    | `main.yml`  | `ansible.builtin.copy`     | `/tmp/practice.txt` 에 메시지 + 타임스탬프 작성 (고수준 모듈)    |
 | Shell      | `post.yml`  | `ansible.builtin.shell`    | 같은 파일을 `test -f` + `cat` 쉘 명령으로 존재·내용 확인         |
 
-세 stage 모두 RHEL 9 호스트면 안전하게 멱등 (`/tmp/` 영역만 건드림). 반복 실행 OK.
+두 stage 모두 `/tmp/` 영역만 건드려서 안전하게 멱등. 반복 실행 OK.
 
-## 왜 3 stage 인가
+## 왜 2 stage 인가
 
 Jenkins 의 다단계 pipeline 흐름과 함께 **같은 결과(파일 작성·확인)를 빌트인 모듈 vs 쉘 명령 두 방식으로 처리하는 차이**를 비교해볼 수 있게 일부러 쪼갰다. `main.yml` (builtin) 과 `post.yml` (shell) 을 나란히 읽으면, 모듈 방식의 멱등성·에러처리·로그가 왜 더 깔끔한지 감 잡기 좋다.
 
@@ -43,7 +41,7 @@ Jenkins 의 다단계 pipeline 흐름과 함께 **같은 결과(파일 작성·�
 | :---------------- | :------------------------------------------------------------------------------ | :------------------------------------ |
 | `loc`             | `ich`                                                                           | Agent 위치 라벨                       |
 | `target_type`     | `linux`                                                                         | 대상 종류 (이 슬롯은 linux 고정)      |
-| `inventory_json`  | `[{"hostname":"rhel9-dev-01","service_ip":"10.100.64.169"}]`                    | 사내 RHEL 9 데모 호스트 1대           |
+| `inventory_json`  | `[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]`                    | 사내 linux 데모 호스트 1대            |
 
 다른 호스트로 돌리려면 `inventory_json` 만 바꾸면 된다.
 
@@ -69,23 +67,22 @@ Jenkins 의 다단계 pipeline 흐름과 함께 **같은 결과(파일 작성·�
 1. **`main.yml` 의 `vars:` 블록** — `practice_message` 를 본인 이름·메시지로 변경
 2. **`main.yml` 의 task** — `ansible.builtin.copy` → `ansible.builtin.lineinfile` 로 바꿔서 한 줄씩 append 되게
 3. **`post.yml` 의 shell** — `cat` 대신 `tail -1` 로 마지막 줄만 가져오게
-4. **`pre.yml` 의 assert** — RHEL 8 도 허용하도록 조건 완화
-5. **`post.yml` 을 builtin 으로 다시 작성** — `ansible.builtin.stat` + `slurp` 로 같은 검증 구현해보고 main.yml/post.yml 두 파일을 같은 모듈군으로 통일
-6. **`Jenkinsfile`** — `Pre-check` 와 `Builtin` 사이에 stage 하나 추가 (예: `Lint` 로 `ansible-playbook --syntax-check`)
-7. **handler 추가** — `main.yml` 에서 파일이 바뀌었을 때만 `notify` 로 debug 메시지 출력
+4. **`post.yml` 을 builtin 으로 다시 작성** — `ansible.builtin.stat` + `slurp` 로 같은 검증 구현해서 main/post 를 같은 모듈군으로 통일
+5. **`Jenkinsfile`** — `Builtin` 앞에 stage 하나 추가 (예: `Lint` 로 `ansible-playbook --syntax-check`, 또는 `Pre-check` 로 환경 검증)
+6. **handler 추가** — `main.yml` 에서 파일이 바뀌었을 때만 `notify` 로 debug 메시지 출력
 
 ## 슬롯 사이의 차이
 
 내용은 모두 동일. 단지 Jenkinsfile 안에 자기 슬롯 경로가 박혀 있을 뿐:
 
 ```
-playbook : "${WORKSPACE}/playbook/sandbox/userNN/{pre,main,post}.yml"
+playbook : "${WORKSPACE}/playbook/sandbox/userNN/{main,post}.yml"
 ```
 
-비교용으로 `git diff sandbox/user01/ sandbox/user02/` 떠보면, 슬롯 간 차이가 path 문자열 3줄뿐인 것을 확인할 수 있다.
+비교용으로 `git diff sandbox/user01/ sandbox/user02/` 떠보면, 슬롯 간 차이가 path 문자열 2줄뿐인 것을 확인할 수 있다.
 
 ## 주의
 
 - `vault/linux.yml` 자격증명이 이미 구성돼 있어야 함 (저장소 [`README.md`](../../README.md) 참고)
-- 기본 `inventory_json` 의 `10.100.64.169` 가 살아있는 RHEL 9 호스트여야 정상 동작
+- 기본 `inventory_json` 의 `10.100.64.169` 가 살아있는 linux 호스트여야 정상 동작
 - 이 디렉토리는 **연습용**. 운영 작업으로 쓰지 말 것. 운영 작업을 만들려면 [`playbook/tasks/`](../tasks/) 안에 새 디렉토리를 만드는 게 맞다.
