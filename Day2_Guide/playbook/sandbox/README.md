@@ -21,7 +21,7 @@ user01/
 
 **linux** 호스트 — Builtin / Shell stage. 환경 검증은 따로 안 하므로 (Pre-check stage 없음) `inventory_json` 의 호스트는 SSH/sudo 가 가능한 일반 linux 면 됨.
 
-**ExtraVars stage** 는 `hosts: localhost` / `connection: local` 로 ansible 컨트롤러 (= Jenkins agent) 에서 실행하므로 SSH·vault 불필요.
+**ExtraVars stage** 는 `hosts: localhost` / `connection: local` 로 ansible 컨트롤러 (= Jenkins agent) 에서 실행하므로 SSH 불필요 (vault 자동 복호화는 다른 stage 와 동일하게 plugin 이 처리).
 
 ## 3 stage 구성
 
@@ -29,7 +29,7 @@ user01/
 | :--------- | :--------------- | :------------------------- | :--------------------------------------------------------------------------- |
 | Builtin    | `main.yml`       | `ansible.builtin.copy`     | `/tmp/practice.txt` 에 메시지 + 타임스탬프 작성 (고수준 모듈)                |
 | Shell      | `post.yml`       | `ansible.builtin.shell`    | 같은 파일을 `test -f` + `cat` 쉘 명령으로 존재·내용 확인                     |
-| ExtraVars  | `extravars.yml`  | `ansible.builtin.debug`    | Jenkinsfile 의 `params` / `env` 를 ansible 변수로 받아 두 채널 비교 출력     |
+| ExtraVars  | `extravars.yml`  | `ansible.builtin.debug`    | Jenkinsfile 의 `greeting` 파라미터를 `extraVars` 로 전달 → debug 출력        |
 
 세 stage 모두 `/tmp/` 영역만 건드리거나 read-only 라 안전하게 멱등. 반복 실행 OK.
 
@@ -39,19 +39,20 @@ user01/
 
 1. **Builtin (`main.yml`)** — 고수준 모듈의 멱등성·자동 권한 처리
 2. **Shell (`post.yml`)** — shell 명령으로 같은 결과를 만들었을 때의 차이 (로그·에러·idempotency)
-3. **ExtraVars (`extravars.yml`)** — Jenkins → ansible 변수 전달 (extraVars Map 채널 + environment lookup 채널 비교)
+3. **ExtraVars (`extravars.yml`)** — `ansiblePlaybook(extraVars: [...])` 로 Jenkins 파라미터를 ansible 변수로 전달
 
-`main.yml` ↔ `post.yml` 을 나란히 읽으면 모듈 vs shell 차이를, `extravars.yml` 은 Jenkinsfile 의 `parameters` / `environment` 값이 어떻게 playbook 안 변수로 들어오는지를 한 번에 익힐 수 있다.
+`main.yml` ↔ `post.yml` 을 나란히 읽으면 모듈 vs shell 차이를, `extravars.yml` 은 Jenkins 파라미터를 ansible 안 변수로 받는 표준 패턴을 익힐 수 있다.
 
 ## 기본 파라미터
 
-세 파라미터 전부 `defaultValue` 가 박혀 있어서 별다른 입력 없이 **Build with Parameters → Build** 한 번이면 끝.
+네 파라미터 전부 `defaultValue` 가 박혀 있어서 별다른 입력 없이 **Build with Parameters → Build** 한 번이면 끝.
 
-| 파라미터          | 기본값                                                                          | 의미                                  |
-| :---------------- | :------------------------------------------------------------------------------ | :------------------------------------ |
-| `loc`             | `ich`                                                                           | Agent 위치 라벨                       |
-| `target_type`     | `linux`                                                                         | 대상 종류 (이 슬롯은 linux 고정)      |
-| `inventory_json`  | `[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]`                    | 사내 linux 데모 호스트 1대            |
+| 파라미터          | 기본값                                                                          | 의미                                                  |
+| :---------------- | :------------------------------------------------------------------------------ | :---------------------------------------------------- |
+| `loc`             | `ich`                                                                           | Agent 위치 라벨                                       |
+| `target_type`     | `linux`                                                                         | 대상 종류 (이 슬롯은 linux 고정)                      |
+| `inventory_json`  | `[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]`                    | 사내 linux 데모 호스트 1대 (2대 이상 예시는 Jenkinsfile 주석) |
+| `greeting`        | `hello from jenkins`                                                            | ExtraVars stage 데모 — ansible 로 넘기는 파라미터 1개 |
 
 다른 호스트로 돌리려면 `inventory_json` 만 바꾸면 된다.
 

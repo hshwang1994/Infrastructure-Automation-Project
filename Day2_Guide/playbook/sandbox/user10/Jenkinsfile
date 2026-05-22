@@ -4,7 +4,12 @@ pipeline {
     parameters {
         string(name: 'loc',            defaultValue: 'ich',                                                            description: 'Agent 위치 (ich | chj | yi)')
         string(name: 'target_type',    defaultValue: 'linux',                                                          description: '대상 종류 — 이 슬롯은 linux 고정')
+        // 호스트 2대 이상:
+        //   [{"hostname":"linux-dev-01","service_ip":"10.100.64.169"},
+        //    {"hostname":"linux-dev-02","service_ip":"10.100.64.170"}]
         text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]',     description: '타겟 호스트 JSON 배열 — 기본값은 사내 linux 데모 호스트')
+
+        string(name: 'greeting',       defaultValue: 'hello from jenkins',                                              description: 'ExtraVars stage 데모 — ansible 로 넘기는 예시 파라미터 1개')
     }
 
     environment {
@@ -41,12 +46,9 @@ pipeline {
                 ansiblePlaybook(
                     installation      : 'ansible',
                     playbook          : "${WORKSPACE}/Day2_Guide/playbook/sandbox/user10/extravars.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
                     extraVars         : [
-                        agent_loc    : "${params.loc}",
-                        agent_type   : "${params.target_type}",
-                        build_number : "${env.BUILD_NUMBER}",
-                        job_name     : "${env.JOB_NAME}",
-                        node_name    : "${env.NODE_NAME}"
+                        greeting: "${params.greeting}"
                     ],
                     colorized         : true
                 )
