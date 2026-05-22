@@ -1,4 +1,6 @@
 ---
+# Pre-check stage — assert + builtin facts 만 사용.
+# RHEL 9 가 아니면 fail_msg 와 함께 즉시 중단.
 - name: Pre-check — RHEL 9 환경 검증 + 호스트 정보 수집
   hosts: all
   gather_facts: true
@@ -9,7 +11,7 @@
     - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
 
   tasks:
-    - name: RHEL 9 환경인지 확인
+    - name: RHEL 9 환경인지 확인 (assert)
       ansible.builtin.assert:
         that:
           - ansible_facts.distribution == 'RedHat'

@@ -1,5 +1,8 @@
 ---
-- name: Post-verify — 결과 확인
+# Shell 데모 — ansible.builtin.shell 로 같은 검증을 "쉘 명령" 으로 한다.
+# 빌트인 모듈(stat / slurp) 대신 test, cat 같은 OS 명령을 직접 호출.
+# changed_when: false 로 멱등성 표시 (쉘은 ansible 이 변경 여부를 모르므로 명시).
+- name: Shell — 쉘 명령으로 파일 검증
   hosts: all
   gather_facts: false
   connection: ssh
@@ -12,22 +15,20 @@
     practice_file: /tmp/practice.txt
 
   tasks:
-    - name: 파일 존재 확인
-      ansible.builtin.stat:
-        path: "{{ practice_file }}"
-      register: practice_stat
+    - name: 파일 존재 확인 (shell — test -f)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        test -f {{ practice_file }} && echo EXISTS
+      register: exists_check
+      changed_when: false
+      failed_when: exists_check.rc != 0
 
-    - name: 파일이 없으면 실패
-      ansible.builtin.assert:
-        that:
-          - practice_stat.stat.exists
-        fail_msg: "{{ practice_file }} 없음 — Main stage 가 실패한 듯"
+    - name: 파일 내용 읽기 (shell — cat)
+      ansible.builtin.shell: |
+        cat {{ practice_file }}
+      register: file_content
+      changed_when: false
 
-    - name: 파일 내용 읽기
-      ansible.builtin.slurp:
-        src: "{{ practice_file }}"
-      register: practice_content
-
-    - name: 내용 출력
+    - name: 결과 출력
       ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ (practice_content.content | b64decode) | trim }}"
+        msg: "{{ inventory_hostname }}: {{ file_content.stdout | trim }} (shell module)"

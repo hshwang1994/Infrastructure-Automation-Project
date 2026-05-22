@@ -6,7 +6,6 @@
 - **새로 작업을 만드는 사람** — 가장 비슷한 `playbook/tasks/` 예시를 복사해 시작
 - **Ansible / Jenkins 를 처음 접하는 사람** — `playbook/sandbox/` 의 본인 슬롯에서 실습
 - **Agent 를 셋업하는 사람** — `docs/ansible-cfg-guide.md` 참고
-- **AI 한테 작업을 시키는 사람** — `GUIDE_FOR_AI.md` 첨부
 
 ## Quick Start
 
@@ -20,7 +19,6 @@
 | Jenkinsfile 규칙·구조             | [`docs/jenkinsfile-guide.md`](docs/jenkinsfile-guide.md)        |
 | Playbook 규칙·hostvars 사용법     | [`docs/playbook-guide.md`](docs/playbook-guide.md)              |
 | Agent 한 번 셋업                  | [`docs/ansible-cfg-guide.md`](docs/ansible-cfg-guide.md)        |
-| AI 에게 작업 시키기               | [`GUIDE_FOR_AI.md`](GUIDE_FOR_AI.md)                            |
 
 ## Prerequisites
 
@@ -55,10 +53,9 @@
 │   └── my_inventory.sh            동적 인벤토리 (포털 JSON → Ansible inventory)
 ├── credentials/                   평문 자격증명 원본 (사람이 편집)
 ├── vault/                         ansible-vault 암호화 자격증명 (런타임 사용)
-├── scripts/
-│   ├── encrypt-vault.sh           credentials/ → vault/
-│   └── decrypt-vault.sh           vault/ → credentials/
-└── GUIDE_FOR_AI.md                AI 가 읽을 입구 파일
+└── scripts/
+    ├── encrypt-vault.sh           credentials/ → vault/
+    └── decrypt-vault.sh           vault/ → credentials/
 ```
 
 ## 실행 흐름
