@@ -40,7 +40,7 @@ ansiblePlaybook(..., vaultCredentialsId: 'ansible-vault-password')
 Playbook:
 ```yaml
 vars_files:
-  - "{{ lookup('env', 'REPO_ROOT') }}/vault/{target_type}.yml"
+  - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
 ```
 
 → ansible-playbook 이 위 Jenkins credential 의 값을 vault 비밀번호로 받아 자동 복호화 → playbook 안에서 `ansible_user`, `ansible_password` 가 변수로 잡힘.

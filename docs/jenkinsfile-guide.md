@@ -1,6 +1,6 @@
 # Jenkinsfile 가이드
 
-실제 예시는 `playbook/tasks/linux/` 와 `playbook/tasks/windows/` 안의 각 작업 디렉토리 Jenkinsfile 참고.
+실제 예시는 `playbook/tasks/linux/` 안의 각 작업 디렉토리 Jenkinsfile 참고.
 
 ## 필수 구조
 
@@ -10,7 +10,7 @@ pipeline {
 
     parameters {
         string(name: 'loc',         defaultValue: '', description: 'Agent 위치 (ich | chj | yi)')
-        string(name: 'target_type', defaultValue: '', description: '대상 종류 (linux | windows | esxi | redfish)')
+        string(name: 'target_type', defaultValue: 'linux', description: '대상 종류 (linux 고정)')
         text(  name: 'inventory_json', defaultValue: '[]', description: '타겟 호스트 JSON 배열')
     }
 
@@ -49,14 +49,14 @@ pipeline {
 agent { label "${params.loc} && ${params.target_type}" }
 ```
 
-`loc` 라벨 (예: `ich`) 과 `target_type` 라벨 (예: `linux`) 을 **둘 다** 가진 Agent 에서만 실행된다. 인천 사이트의 linux 처리 전용 agent, 청주 사이트의 redfish 전용 agent 같은 구분을 라벨 조합으로 표현하기 위해서.
+`loc` 라벨 (예: `ich`) 과 `target_type` 라벨 (`linux`) 을 **둘 다** 가진 Agent 에서만 실행된다. 인천 사이트의 linux 처리 전용 agent, 청주 사이트의 linux 처리 전용 agent 같은 구분을 라벨 조합으로 표현하기 위해서.
 
 ### environment 3개
 
 | 변수               | 사용처                                                                                                       |
 | :----------------- | :----------------------------------------------------------------------------------------------------------- |
 | `INVENTORY_JSON`   | `inventory/my_inventory.sh` 가 호스트 목록을 읽을 때                                                         |
-| `TARGET_TYPE`      | `inventory/my_inventory.sh` 가 라우팅(linux 면 hostname, redfish 면 bmc_ip) 결정할 때                        |
+| `TARGET_TYPE`      | `inventory/my_inventory.sh` 가 호스트명·접속 IP 매핑 결정할 때 (linux 면 hostname → inventory_hostname, service_ip → ansible_host) |
 | `REPO_ROOT`        | playbook 안에서 `vault/`, `roles/` 같은 저장소 내 파일을 절대 경로로 참조할 때. Jenkins 가 빌드마다 워크스페이스 경로를 바꾸므로 상대 경로는 깨지기 쉬움. |
 
 ### inventory 파라미터 생략
@@ -71,7 +71,7 @@ vaultCredentialsId: 'ansible-vault-password'
 
 `ansible-vault-password` 는 Jenkins UI 에 등록된 Secret text 의 ID. 값은 vault 복호화 비밀번호 하나뿐이다. 빌드 시 ansible-playbook 한테 `--vault-password-file` 로 자동 전달된다.
 
-서버 계정 (`ansible_user` / `ansible_password`) 자체는 `vault/{target_type}.yml` 에 ansible-vault 로 암호화되어 들어가 있고, playbook 이 `vars_files` 로 로딩하면 ansible 이 위 비밀번호로 자동 복호화한다.
+서버 계정 (`ansible_user` / `ansible_password`) 자체는 `vault/linux.yml` 에 ansible-vault 로 암호화되어 들어가 있고, playbook 이 `vars_files` 로 로딩하면 ansible 이 위 비밀번호로 자동 복호화한다.
 
 그래서 `withCredentials([ usernamePassword(...) ])` 로 사용자/비번을 직접 꺼내거나, `extraVars` 에 비밀번호를 박는 패턴은 쓰지 않는다 — Jenkinsfile 이 시크릿 값을 직접 만지지 않게 함.
 

@@ -24,7 +24,7 @@ VAULT_DIR="${REPO_ROOT}/vault"
 if [[ $# -gt 0 ]]; then
   TYPES=("$@")
 else
-  TYPES=(linux windows esxi redfish)
+  TYPES=(linux)
 fi
 
 # ansible-vault 위치 찾기 (override > PATH > venv 표준 경로)

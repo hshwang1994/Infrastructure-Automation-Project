@@ -55,9 +55,6 @@ enable_plugins = script, auto
 [ssh_connection]
 pipelining = True
 ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
-
-[winrm]
-transport = ntlm
 ```
 
 `{Jenkins_마스터_IP}`, `{Redis비밀번호}` 는 실제 값으로 교체.

@@ -29,9 +29,9 @@
 | Jenkins                      | Pipeline + Ansible plugin (`ansiblePlaybook` 스텝) 설치        |
 | Jenkins Credentials          | Secret text 1개 — ID `ansible-vault-password`                  |
 | Agent OS                     | Linux (Ansible 컨트롤러 역할)                                  |
-| ansible-core                 | 2.14 이상. Windows 타깃이면 2.20.x 권장                        |
-| `sshpass`                    | password-based SSH / sudo 처리 (linux 타깃)                    |
-| 타깃 OS                      | RHEL 9 (linux 예시 기준) / Windows Server (winrm 5985)         |
+| ansible-core                 | 2.14 이상                                                      |
+| `sshpass`                    | password-based SSH / sudo 처리                                 |
+| 타깃 OS                      | linux (RHEL 9 예시 기준)                                       |
 
 세부 셋업은 [`docs/ansible-cfg-guide.md`](docs/ansible-cfg-guide.md).
 
@@ -45,8 +45,7 @@
 │   └── ansible-cfg-guide.md       Agent 측 ansible.cfg 표준
 ├── playbook/
 │   ├── tasks/                     실제 운영 작업 (Jenkinsfile + playbook + README 한 세트)
-│   │   ├── linux/                 ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
-│   │   └── windows/               service-check, sysinfo
+│   │   └── linux/                 ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
 │   ├── patterns/                  Ansible 문법 데모 (roles, block-rescue, tags) — 학습용
 │   └── sandbox/                   연습 슬롯 user01~user10 (linux, 2 stage 템플릿)
 ├── inventory/
@@ -74,8 +73,8 @@ sequenceDiagram
     Jenkins->>Ansible: ansiblePlaybook() 호출
     Ansible->>Inv: INVENTORY_JSON + TARGET_TYPE 전달
     Inv-->>Ansible: 인벤토리 JSON 반환
-    Ansible->>Ansible: vault/{type}.yml 자동 복호화
-    Ansible->>Target: SSH·WinRM 접속 + task 실행
+    Ansible->>Ansible: vault/linux.yml 자동 복호화
+    Ansible->>Target: SSH 접속 + task 실행
     Target-->>Ansible: 실행 결과
     Ansible-->>Jenkins: 빌드 성공·실패
 ```
@@ -87,8 +86,8 @@ sequenceDiagram
 | 1    | 포털                          | `loc`, `target_type`, `inventory_json` 세 파라미터로 Jenkins job 트리거                               |
 | 2    | Jenkinsfile                   | 위 값을 환경변수로 노출하고 `ansiblePlaybook(vaultCredentialsId: ...)` 호출                           |
 | 3    | `inventory/my_inventory.sh`   | `INVENTORY_JSON` + `TARGET_TYPE` 을 읽어 ansible 인벤토리 JSON 으로 변환                              |
-| 4    | ansible-playbook              | `vars_files` 의 `vault/{target_type}.yml` 을 Jenkins 가 넘긴 vault 비밀번호로 자동 복호화             |
-| 5    | playbook                      | `ansible_user` / `ansible_password` 로 타깃 서버에 SSH·WinRM·HTTPS 접속 후 task 실행                  |
+| 4    | ansible-playbook              | `vars_files` 의 `vault/linux.yml` 을 Jenkins 가 넘긴 vault 비밀번호로 자동 복호화                     |
+| 5    | playbook                      | `ansible_user` / `ansible_password` 로 타깃 서버에 SSH 접속 후 task 실행                              |
 
 ## 새 작업 만들기
 

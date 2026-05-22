@@ -1,9 +1,0 @@
----
-# redfish target_type 자격증명 — vault/redfish.yml 의 평문 원본
-# 변경 시 scripts/encrypt-vault.sh 로 vault/redfish.yml 재생성 필요.
-#
-# 현재 모든 vendor 가 동일 계정 사용. 운영 단계에서 vendor 별 분리 필요 시
-# credentials/redfish-{vendor}.yml 형태로 분기 후 vault 재생성.
-
-ansible_user:     infra
-ansible_password: infra1234

@@ -1,6 +1,0 @@
----
-# esxi target_type 자격증명 — vault/esxi.yml 의 평문 원본
-# 변경 시 scripts/encrypt-vault.sh 로 vault/esxi.yml 재생성 필요.
-
-ansible_user:     infra
-ansible_password: infra1234

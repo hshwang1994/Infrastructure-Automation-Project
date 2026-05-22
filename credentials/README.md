@@ -9,11 +9,8 @@
 | 평문 (이 디렉토리) | 암호화 (vault/)         | target_type |
 | :----------------- | :---------------------- | :---------- |
 | `linux.yml`        | `../vault/linux.yml`    | linux       |
-| `windows.yml`      | `../vault/windows.yml`  | windows     |
-| `esxi.yml`         | `../vault/esxi.yml`     | esxi        |
-| `redfish.yml`      | `../vault/redfish.yml`  | redfish     |
 
-각 파일에는 `ansible_user`, `ansible_password` (linux 는 sudo 용 `ansible_become_password` 도) 만 담는다. WinRM 의 transport / port 같은 비밀번호가 아닌 설정은 vault 가 아니라 playbook 의 `vars` 블록에 둔다.
+`ansible_user`, `ansible_password`, sudo 용 `ansible_become_password`, 그리고 SSH client 옵션인 `ansible_ssh_common_args` 를 담는다. 비밀번호가 아닌 설정도 vault 와 같이 들고 다니는 게 운영상 편해서 같이 묶었다 (자세한 설명은 파일 안 주석).
 
 ## 전체 흐름
 

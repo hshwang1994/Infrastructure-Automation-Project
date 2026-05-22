@@ -20,7 +20,7 @@ VAULT_DIR="${REPO_ROOT}/vault"
 if [[ $# -gt 0 ]]; then
   TYPES=("$@")
 else
-  TYPES=(linux windows esxi redfish)
+  TYPES=(linux)
 fi
 
 ANSIBLE_VAULT_BIN="${ANSIBLE_VAULT_BIN:-}"

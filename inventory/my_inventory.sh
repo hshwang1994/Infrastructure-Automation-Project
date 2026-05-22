@@ -1,35 +1,31 @@
 #!/usr/bin/env python3
 """
-ansible 동적 인벤토리 스크립트.
+ansible 동적 인벤토리 스크립트 (linux 전용).
 
 ansible 이 이 파일을 실행하면 stdout 으로 ansible-inventory 호환 JSON 을 출력한다.
 ansible 은 그 JSON 을 읽어서 어떤 호스트에 어떻게 접속할지 정한다.
 
 무엇을 하는가:
   포털이 보낸 호스트 JSON (환경변수 INVENTORY_JSON) 을 받아서,
-  TARGET_TYPE 을 보고 호스트마다 inventory_hostname / ansible_host 만 정해주고,
+  호스트마다 inventory_hostname / ansible_host 만 정해주고,
   나머지 필드는 손대지 않고 그대로 hostvars 에 넣어준다.
   필드의 의미는 각 playbook 이 알아서 해석한다.
 
 읽는 환경변수:
   INVENTORY_JSON  — 포털이 보낸 호스트 배열 (JSON 문자열)
-  TARGET_TYPE     — 대상 종류 (linux | windows | esxi | redfish)
+  TARGET_TYPE     — 'linux' 고정 (저장소가 linux 전용이라 검증만 함)
 
 INVENTORY_JSON 가 비어 있으면 WORKSPACE/.inventory_input.json 파일을 대신 읽는다.
 둘 다 없으면 에러로 종료.
 
 inventory_hostname / ansible_host 결정 규칙:
-  redfish              : inventory_hostname = bmc_ip,    ansible_host = bmc_ip
-  linux/windows/esxi   : inventory_hostname = hostname,  ansible_host = service_ip
-
-(이름과 접속 IP 가 redfish 만 같은 이유: BMC 에는 hostname 이 없어서 IP 가 곧 식별자.)
+  inventory_hostname = hostname,  ansible_host = service_ip
 
 INVENTORY_JSON 형식 예시:
   [
     {
-      "bmc_ip":     "10.0.1.1",
-      "service_ip": "10.0.2.1",
-      "hostname":   "WEB-01",
+      "hostname":   "linux-dev-01",
+      "service_ip": "10.100.64.169",
       "vendor":     "dell",
       "mgmt_ip":    "10.0.3.1",
       "os_image":   "rhel-9.2"
@@ -71,12 +67,14 @@ def get_field(host: dict, field: str, idx: int, required: bool = False) -> str:
 # ── 입력 로딩 ───────────────────────────────────────────────────────
 
 def load_target_type() -> str:
-    """환경변수에서 TARGET_TYPE 을 읽는다."""
+    """환경변수에서 TARGET_TYPE 을 읽는다. linux 만 허용."""
     target_type = os.environ.get("TARGET_TYPE", "").strip().lower()
     if not target_type:
         target_type = os.environ.get("target_type", "").strip().lower()
     if not target_type:
         error("TARGET_TYPE 환경변수가 설정되지 않았습니다.")
+    if target_type != "linux":
+        error(f"이 저장소는 linux 전용입니다. TARGET_TYPE='{target_type}' 는 지원하지 않습니다.")
     return target_type
 
 
@@ -111,22 +109,8 @@ def collect_extra_vars(host: dict, exclude_fields: tuple) -> dict:
     return {k: v for k, v in host.items() if k not in exclude_fields and v is not None}
 
 
-def parse_host_redfish(host: dict, idx: int) -> tuple:
-    """redfish 호스트를 파싱한다. (inventory_hostname = bmc_ip)"""
-    bmc_ip = get_field(host, "bmc_ip", idx, required=True)
-    validate_ip(bmc_ip, "bmc_ip", idx)
-
-    key = bmc_ip
-    host_vars = {"ansible_host": bmc_ip}
-
-    # bmc_ip 외 모든 필드를 hostvars 에 그대로 전달
-    host_vars.update(collect_extra_vars(host, ("bmc_ip",)))
-
-    return key, host_vars
-
-
-def parse_host_os(host: dict, idx: int) -> tuple:
-    """linux/windows/esxi 호스트를 파싱한다. (inventory_hostname = hostname)"""
+def parse_host(host: dict, idx: int) -> tuple:
+    """linux 호스트를 파싱한다. (inventory_hostname = hostname, ansible_host = service_ip)"""
     hostname = get_field(host, "hostname", idx, required=True)
     service_ip = get_field(host, "service_ip", idx, required=True)
     validate_ip(service_ip, "service_ip", idx)
@@ -142,16 +126,14 @@ def parse_host_os(host: dict, idx: int) -> tuple:
 
 # ── 인벤토리 빌드 ───────────────────────────────────────────────────
 
-def build_inventory(payload: list, target_type: str) -> dict:
+def build_inventory(payload: list) -> dict:
     """호스트 배열을 Ansible 인벤토리 dict 로 변환한다."""
     host_keys = []
     hostvars = {}
     seen_keys = set()
 
-    parser = parse_host_redfish if target_type == "redfish" else parse_host_os
-
     for idx, host in enumerate(payload):
-        key, host_vars = parser(host, idx)
+        key, host_vars = parse_host(host, idx)
 
         if key in seen_keys:
             error(f"inventory_hostname 이 중복됩니다: '{key}' (항목[{idx}])")
@@ -174,7 +156,8 @@ def main() -> None:
         print("{}")
         return
 
-    target_type = load_target_type()
+    # TARGET_TYPE 은 linux 만 허용 (검증 목적). 실제 라우팅 분기는 없음.
+    load_target_type()
     raw = load_inventory_json()
 
     try:
@@ -188,7 +171,7 @@ def main() -> None:
     if not payload:
         error("INVENTORY_JSON 배열이 비어있습니다.")
 
-    inventory = build_inventory(payload, target_type)
+    inventory = build_inventory(payload)
     print(json.dumps(inventory, ensure_ascii=False, indent=2))
 
 
