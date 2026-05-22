@@ -54,12 +54,27 @@ enable_plugins = script, auto
 
 [ssh_connection]
 pipelining = True
+ssh_args = -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
 
 [winrm]
 transport = ntlm
 ```
 
 `{Jenkins_마스터_IP}`, `{Redis비밀번호}` 는 실제 값으로 교체.
+
+### ssh_args 가 왜 저렇게 되는가
+
+`host_key_checking = False` 만 있고 `ssh_args` 에 `UserKnownHostsFile=/dev/null` 이 빠지면, **OpenSSH 8.x+ 의 MITM 방어** 가 발동해서 비밀번호 인증 자체가 차단된다 (콘솔에 `Password authentication is disabled to avoid man-in-the-middle attacks` 로 찍힘). 즉 vault 의 `ansible_password` 가 들어 있어도 SSH client 가 비번을 보내지 않아 `Permission denied` 가 난다.
+
+- `UserKnownHostsFile=/dev/null` — agent 의 `~/.ssh/known_hosts` 를 안 읽음 → 옛 호스트키 충돌 자체가 발생 안 함
+- `StrictHostKeyChecking=no` — 처음 보는 호스트도 자동 진행
+- `ControlMaster=auto` / `ControlPersist=60s` — 다중 task 시 SSH 세션 재사용 (ansible 기본 권장)
+
+이 셋이 모이면 **vault 비번 한 줄로 모든 linux 타깃에 자동 접속** 이 보장된다 — agent 가 타깃마다 호스트키 등록 절차를 거치는 운영 부담이 사라진다.
+
+### Agent 의 ssh_args 를 못 바꿀 경우 — 저장소 쪽 fallback
+
+agent 의 `/etc/ansible/ansible.cfg` 를 못 바꾸는 환경이면, `vault/linux.yml` 안에 `ansible_ssh_common_args: "-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"` 를 추가하는 것으로 같은 효과를 낼 수 있다. 이 변수는 ansible 이 ssh_args 에 **추가**해서 전달하므로 agent 의 ControlMaster 같은 다른 설정을 깨지 않는다.
 
 ## 3. 설정이 먹혔는지 확인
 
