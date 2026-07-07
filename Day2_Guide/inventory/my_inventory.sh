@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ansible 동적 인벤토리 스크립트 (linux 전용).
+ansible 동적 인벤토리 스크립트 (linux / windows).
 
 ansible 이 이 파일을 실행하면 stdout 으로 ansible-inventory 호환 JSON 을 출력한다.
 ansible 은 그 JSON 을 읽어서 어떤 호스트에 어떻게 접속할지 정한다.
@@ -13,7 +13,7 @@ ansible 은 그 JSON 을 읽어서 어떤 호스트에 어떻게 접속할지 �
 
 읽는 환경변수:
   INVENTORY_JSON  — 포털이 보낸 호스트 배열 (JSON 문자열)
-  TARGET_TYPE     — 'linux' 고정 (저장소가 linux 전용이라 검증만 함)
+  TARGET_TYPE     — 'linux' 또는 'windows' (검증만 함. 라우팅 분기는 없음)
 
 INVENTORY_JSON 가 비어 있으면 WORKSPACE/.inventory_input.json 파일을 대신 읽는다.
 둘 다 없으면 에러로 종료.
@@ -67,14 +67,15 @@ def get_field(host: dict, field: str, idx: int, required: bool = False) -> str:
 # ── 입력 로딩 ───────────────────────────────────────────────────────
 
 def load_target_type() -> str:
-    """환경변수에서 TARGET_TYPE 을 읽는다. linux 만 허용."""
+    """환경변수에서 TARGET_TYPE 을 읽는다. linux / windows 허용."""
+    allowed = ("linux", "windows")
     target_type = os.environ.get("TARGET_TYPE", "").strip().lower()
     if not target_type:
         target_type = os.environ.get("target_type", "").strip().lower()
     if not target_type:
         error("TARGET_TYPE 환경변수가 설정되지 않았습니다.")
-    if target_type != "linux":
-        error(f"이 저장소는 linux 전용입니다. TARGET_TYPE='{target_type}' 는 지원하지 않습니다.")
+    if target_type not in allowed:
+        error(f"지원하지 않는 TARGET_TYPE='{target_type}' 입니다. {allowed} 만 허용합니다.")
     return target_type
 
 
