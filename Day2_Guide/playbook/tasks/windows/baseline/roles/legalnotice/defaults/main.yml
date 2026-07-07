@@ -1,0 +1,5 @@
+---
+legalnotice_caption: "Authorized access only"
+legalnotice_text: |
+  This system is managed by Ansible.
+  Manual changes will be overwritten.

@@ -1,0 +1,31 @@
+pipeline {
+    agent { label "${params.loc} && ${params.target_type}" }
+
+    parameters {
+        string(name: 'loc',            defaultValue: 'ich',   description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type',    defaultValue: 'linux', description: '대상 종류 — 이 작업은 linux 고정')
+        text(  name: 'inventory_json', defaultValue: '''[
+  {"hostname":"linux-dev-01","service_ip":"10.100.64.169","tier":"web","patch_window":"Sun 02:00"},
+  {"hostname":"linux-dev-02","service_ip":"10.100.64.170","tier":"db"}
+]''', description: '타겟 호스트 JSON 배열 — hostname/service_ip 외 필드는 hostvar 로 전달됨')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}/Day2_Guide"
+    }
+
+    stages {
+        stage('Run Ansible') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/tasks/linux/hostvars-demo/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+    }
+}

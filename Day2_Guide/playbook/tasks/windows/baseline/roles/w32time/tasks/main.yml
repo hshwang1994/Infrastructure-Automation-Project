@@ -1,0 +1,14 @@
+---
+- name: w32time 서비스 자동 시작 + 기동
+  ansible.windows.win_service:
+    name: w32time
+    start_mode: auto
+    state: started
+
+- name: NTP 피어 목록 구성
+  ansible.windows.win_command: >-
+    w32tm /config /manualpeerlist:"{{ w32time_ntp_servers | join(' ') }}"
+    /syncfromflags:manual /reliable:yes /update
+  register: w32tm_config
+  changed_when: w32tm_config.rc == 0
+  notify: restart w32time

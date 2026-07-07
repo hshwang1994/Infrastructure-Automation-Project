@@ -1,0 +1,27 @@
+---
+- name: 사후 검증 — 남은 보안·중요 업데이트 확인
+  hosts: all
+  gather_facts: false
+  connection: winrm
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_scheme:                 http
+    ansible_port:                         5985
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+    - name: 남은 업데이트 재검색
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+        state: searched
+      register: recheck
+
+    - name: 결과
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 남은 보안·중요 업데이트 {{ recheck.found_update_count }}건"

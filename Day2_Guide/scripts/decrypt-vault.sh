@@ -6,7 +6,7 @@
 # 이 스크립트는 주로 디버깅/긴급 확인용.
 #
 # 사용법:
-#   ./scripts/decrypt-vault.sh              # 모든 파일
+#   ./scripts/decrypt-vault.sh              # 모든 파일 (linux windows)
 #   ./scripts/decrypt-vault.sh linux        # 특정 target_type 만
 #
 # 비밀번호 / ansible-vault 위치 옵션: encrypt-vault.sh 와 동일.
@@ -20,7 +20,7 @@ VAULT_DIR="${REPO_ROOT}/vault"
 if [[ $# -gt 0 ]]; then
   TYPES=("$@")
 else
-  TYPES=(linux)
+  TYPES=(linux windows)
 fi
 
 ANSIBLE_VAULT_BIN="${ANSIBLE_VAULT_BIN:-}"

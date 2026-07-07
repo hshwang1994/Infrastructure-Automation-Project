@@ -2,7 +2,7 @@
 # credentials/*.yml (평문) → vault/*.yml (ansible-vault 암호화) 일괄 변환
 #
 # 사용법:
-#   ./scripts/encrypt-vault.sh              # 모든 파일
+#   ./scripts/encrypt-vault.sh              # 모든 파일 (linux windows)
 #   ./scripts/encrypt-vault.sh linux        # 특정 target_type 만
 #
 # 비밀번호 입력 방식:
@@ -24,7 +24,7 @@ VAULT_DIR="${REPO_ROOT}/vault"
 if [[ $# -gt 0 ]]; then
   TYPES=("$@")
 else
-  TYPES=(linux)
+  TYPES=(linux windows)
 fi
 
 # ansible-vault 위치 찾기 (override > PATH > venv 표준 경로)

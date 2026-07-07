@@ -30,6 +30,8 @@ git add vault/ && git commit -m "vault: encrypt" && git push
 
 이후 `credentials/` 의 값을 바꿀 때마다 2~4번 반복.
 
+> `windows.yml` 도 같은 흐름이다. 인자 없이 `./scripts/encrypt-vault.sh` 를 돌리면 `linux` 와 `windows` 를 모두 암호화하고, `./scripts/encrypt-vault.sh windows` 로 windows 만 처리할 수도 있다. windows playbook 은 `connection: winrm` (5985 HTTP) 로 접속하며 `ansible_user` / `ansible_password` 를 이 vault 에서 읽는다.
+
 ## ansible 이 어떻게 쓰는가
 
 Jenkinsfile:

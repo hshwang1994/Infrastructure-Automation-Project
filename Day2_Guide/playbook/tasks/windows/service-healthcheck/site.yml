@@ -1,0 +1,60 @@
+---
+- name: IIS 헬스체크 엔드포인트 배포 (install/configure/verify 태그 분리)
+  hosts: all
+  connection: winrm
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_scheme:                 http
+    ansible_port:                         5985
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+    - name: IIS(Web-Server) 설치
+      ansible.windows.win_feature:
+        name: Web-Server
+        state: present
+        include_management_tools: true
+      register: iis_feature
+      tags: install
+
+    - name: IIS 설치 후 재부팅 필요 시 재부팅
+      ansible.windows.win_reboot:
+      when: iis_feature.reboot_required | default(false)
+      tags: install
+
+    - name: 헬스체크 페이지 배치
+      ansible.windows.win_copy:
+        content: "ok\n"
+        dest: C:\inetpub\wwwroot\healthz.txt
+      notify: restart w3svc
+      tags: configure
+
+    - name: W3SVC(IIS) 시작/자동
+      ansible.windows.win_service:
+        name: W3SVC
+        state: started
+        start_mode: auto
+      tags: configure
+
+    - name: /healthz.txt 응답 확인
+      ansible.windows.win_uri:
+        url: http://localhost/healthz.txt
+        status_code: 200
+        return_content: true
+      register: probe
+      tags: verify
+
+    - ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: probe={{ probe.content | trim }}"
+      tags: verify
+
+  handlers:
+    - name: restart w3svc
+      ansible.windows.win_service:
+        name: W3SVC
+        state: restarted

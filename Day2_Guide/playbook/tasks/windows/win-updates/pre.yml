@@ -1,0 +1,27 @@
+---
+- name: 적용 대기 업데이트 조회 (설치 안 함)
+  hosts: all
+  gather_facts: false
+  connection: winrm
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_scheme:                 http
+    ansible_port:                         5985
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+    - name: 보안·중요 업데이트 검색
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+        state: searched
+      register: search
+
+    - name: 대기 업데이트 요약
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 대기 {{ search.found_update_count }}건"

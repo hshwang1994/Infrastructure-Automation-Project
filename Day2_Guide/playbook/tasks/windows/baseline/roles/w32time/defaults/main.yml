@@ -1,0 +1,4 @@
+---
+w32time_ntp_servers:
+  - time.windows.com
+  - time.google.com

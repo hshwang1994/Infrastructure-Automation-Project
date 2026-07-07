@@ -9,8 +9,11 @@
 | 평문 (이 디렉토리) | 암호화 (vault/)         | target_type |
 | :----------------- | :---------------------- | :---------- |
 | `linux.yml`        | `../vault/linux.yml`    | linux       |
+| `windows.yml`      | `../vault/windows.yml`  | windows     |
 
-`ansible_user`, `ansible_password`, sudo 용 `ansible_become_password`, 그리고 SSH client 옵션인 `ansible_ssh_common_args` 를 담는다. 비밀번호가 아닌 설정도 vault 와 같이 들고 다니는 게 운영상 편해서 같이 묶었다 (자세한 설명은 파일 안 주석).
+`linux.yml` 은 `ansible_user`, `ansible_password`, sudo 용 `ansible_become_password`, SSH client 옵션 `ansible_ssh_common_args` 를 담는다. 비밀번호가 아닌 설정도 vault 와 같이 들고 다니는 게 운영상 편해서 같이 묶었다 (자세한 설명은 파일 안 주석).
+
+`windows.yml` 은 `ansible_user` / `ansible_password` 만 담는다. WinRM 의 transport / scheme / port 같은 비밀 아닌 연결 설정은 각 windows playbook 의 `vars` 블록에 둔다.
 
 ## 전체 흐름
 

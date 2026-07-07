@@ -30,8 +30,9 @@
 | Jenkins Credentials          | Secret text 1개 — ID `ansible-vault-password`                  |
 | Agent OS                     | Linux (Ansible 컨트롤러 역할)                                  |
 | ansible-core                 | 2.14 이상                                                      |
-| `sshpass`                    | password-based SSH / sudo 처리                                 |
-| 타깃 OS                      | linux (RHEL 9 예시 기준)                                       |
+| `sshpass`                    | password-based SSH / sudo 처리 (linux 타깃)                    |
+| `ansible.windows` 컬렉션     | windows 타깃 (`ansible-galaxy collection install ansible.windows`), `pywinrm` 파이썬 패키지 |
+| 타깃 OS                      | linux (RHEL 9 예시) · windows (WinRM over HTTP, 5985)          |
 
 세부 셋업은 [`docs/ansible-cfg-guide.md`](docs/ansible-cfg-guide.md).
 
@@ -45,7 +46,8 @@
 │   └── ansible-cfg-guide.md       Agent 측 ansible.cfg 표준
 ├── playbook/
 │   ├── tasks/                     실제 운영 작업 (Jenkinsfile + playbook + README 한 세트)
-│   │   └── linux/                 ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
+│   │   ├── linux/                 ntp, pkg-update, disk-check, baseline, sshd-safe-reload, nginx-healthcheck
+│   │   └── windows/               win-updates, disk-check, baseline, service-healthcheck (WinRM/HTTP)
 │   ├── patterns/                  Ansible 문법 데모 (roles, block-rescue, tags) — 학습용
 │   └── sandbox/                   연습 슬롯 user01~user10 (linux, 3 stage 템플릿: Builtin / Shell / ExtraVars)
 ├── inventory/

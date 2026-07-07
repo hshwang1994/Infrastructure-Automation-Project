@@ -4,7 +4,7 @@
 
 | 디렉토리                  | 내용                                                                                                       |
 | :------------------------ | :--------------------------------------------------------------------------------------------------------- |
-| [`tasks/`](tasks/)        | 실제 운영 작업 예시 (Jenkins 에서 그대로 호출). `linux/` 하나                                              |
+| [`tasks/`](tasks/)        | 실제 운영 작업 예시 (Jenkins 에서 그대로 호출). `linux/` · `windows/`                                       |
 | [`patterns/`](patterns/)  | Ansible 문법·구조 데모 (roles 디렉토리 / block-rescue / tags). 학습용                                      |
 | [`sandbox/`](sandbox/)    | 연습용 슬롯 (`user01` ~ `user10` 10개, 모두 동일 linux 기준 3 stage 템플릿: Builtin / Shell / ExtraVars). 본인 슬롯의 yml 을 수정하며 학습 |
 
@@ -24,6 +24,18 @@
 | [`tasks/linux/baseline/`](tasks/linux/baseline/)                    | chrony + motd baseline     | **Role 구조** (`roles/{name}/{tasks,handlers,defaults,templates}`)  |
 | [`tasks/linux/sshd-safe-reload/`](tasks/linux/sshd-safe-reload/)    | sshd 재시작 + 실패 시 롤백 | **block / rescue / always**                                         |
 | [`tasks/linux/nginx-healthcheck/`](tasks/linux/nginx-healthcheck/)  | nginx + `/healthz` 배포    | **tags** 로 install / configure / verify 분리 + Jenkinsfile 다단계  |
+| [`tasks/linux/hostvars-demo/`](tasks/linux/hostvars-demo/)          | inventory 추가 필드 출력   | **inventory_json 필드 → 호스트별 hostvar** (`{{ var }}` / `default` / `when`) |
+
+### windows/
+
+`connection: winrm` + ntlm transport + `http` scheme + 5985 포트 (HTTP) 를 각 `site.yml` 의 `vars` 블록에 두고, `vault/windows.yml` 을 자격증명으로 읽는다. Linux 작업과 같은 구조·패턴에 windows 특화 모듈 (`win_*`) 을 얹은 대응 세트.
+
+| 디렉토리                                                                       | 작업                       | 보여주는 패턴                                                       |
+| :----------------------------------------------------------------------------- | :------------------------- | :------------------------------------------------------------------ |
+| [`tasks/windows/win-updates/`](tasks/windows/win-updates/)                     | 보안·중요 Windows Update   | Jenkinsfile 3 stage (Pre / Update / Post) + playbook 분리 (linux `pkg-update` 대응) |
+| [`tasks/windows/disk-check/`](tasks/windows/disk-check/)                        | 논리 디스크·대용량 파일    | `win_shell` raw (linux `disk-check` 대응)                          |
+| [`tasks/windows/baseline/`](tasks/windows/baseline/)                            | w32time + legalnotice      | **Role 구조** (`roles/{name}/{tasks,handlers,defaults}`) (linux `baseline` 대응) |
+| [`tasks/windows/service-healthcheck/`](tasks/windows/service-healthcheck/)      | IIS + `/healthz` 배포      | **tags** 로 install / configure / verify 분리 (linux `nginx-healthcheck` 대응) |
 
 ## patterns/ 데모 목록
 
