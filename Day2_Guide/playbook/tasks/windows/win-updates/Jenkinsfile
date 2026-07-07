@@ -14,28 +14,13 @@ pipeline {
     }
 
     stages {
-        stage('Prepare creds') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'windows-target', usernameVariable: 'WIN_USER', passwordVariable: 'WIN_PASS')]) {
-                    sh '''
-                        set -eu
-                        mkdir -p "${REPO_ROOT}/vault"
-                        umask 077
-                        {
-                          echo "ansible_user: ${WIN_USER}"
-                          echo "ansible_password: ${WIN_PASS}"
-                        } > "${REPO_ROOT}/vault/windows.yml"
-                    '''
-                }
-            }
-        }
-
         stage('Pre-check') {
             steps {
                 ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/pre.yml",
-                    colorized   : true
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/pre.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
                 )
             }
         }
@@ -43,9 +28,10 @@ pipeline {
         stage('Update') {
             steps {
                 ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/update.yml",
-                    colorized   : true
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/update.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
                 )
             }
         }
@@ -53,9 +39,10 @@ pipeline {
         stage('Post-verify') {
             steps {
                 ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/post.yml",
-                    colorized   : true
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/win-updates/post.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
                 )
             }
         }

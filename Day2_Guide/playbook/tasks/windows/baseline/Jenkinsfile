@@ -16,22 +16,12 @@ pipeline {
     stages {
         stage('Run Ansible') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'windows-target', usernameVariable: 'WIN_USER', passwordVariable: 'WIN_PASS')]) {
-                    sh '''
-                        set -eu
-                        mkdir -p "${REPO_ROOT}/vault"
-                        umask 077
-                        {
-                          echo "ansible_user: ${WIN_USER}"
-                          echo "ansible_password: ${WIN_PASS}"
-                        } > "${REPO_ROOT}/vault/windows.yml"
-                    '''
-                    ansiblePlaybook(
-                        installation: 'ansible',
-                        playbook    : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/baseline/site.yml",
-                        colorized   : true
-                    )
-                }
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/tasks/windows/baseline/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
             }
         }
     }
