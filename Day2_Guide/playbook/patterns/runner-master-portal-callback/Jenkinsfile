@@ -1,14 +1,32 @@
 pipeline {
-    agent none
+    agent { label "${params.loc} && ${params.target_type}" }
 
     parameters {
-        string(name: 'loc',            defaultValue: 'git', description: 'Ansible 을 실행할 Jenkins Runner 라벨')
-        text(  name: 'inventory_json', defaultValue: '[{"hostname":"WIN-TP7D9J9QKCB","ansible_host":"10.100.64.120"}]', description: '타겟 호스트 JSON 배열')
-        string(name: 'callbackUrl',    defaultValue: '',    description: '포털 API base URL (CLOVIRONE_BASE_URL)')
+        string(name: 'loc',            defaultValue: 'ich',   description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type',    defaultValue: 'linux', description: '대상 종류 (linux | windows | esxi | redfish)')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]', description: '타겟 호스트 JSON 배열')
+        string(name: 'callbackUrl',    defaultValue: '', description: '포털 API base URL (CLOVIRONE_BASE_URL)')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}/Day2_Guide"
     }
 
     stages {
-        stage('Validate') {
+        stage('Run Ansible') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+
+        stage('Update Deployment Step') {
             agent { label 'built-in' }
             steps {
                 script {
@@ -21,42 +39,18 @@ pipeline {
                         error("inventory_json 배열이 비어있습니다.")
                     }
 
-                    hosts.eachWithIndex { host, idx ->
+                    def hostNames = hosts.collect { host ->
                         def hostName = (host?.hostName ?: host?.hostname)?.toString()?.trim()
                         if (!hostName) {
-                            error("inventory_json 항목[${idx}] 에 hostName(hostname) 이 없습니다: ${host}")
+                            error("inventory_json 항목에 hostName(hostname) 이 없습니다: ${host}")
                         }
+                        hostName
                     }
-                }
-            }
-        }
 
-        stage('Run Ansible') {
-            agent { label "${params.loc}" }
-            environment {
-                INVENTORY_JSON = "${params.inventory_json}"
-            }
-            steps {
-                checkout scm
-                ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
-                    inventory   : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/inventory.sh",
-                    colorized   : true
-                )
-            }
-        }
-
-        stage('Update Deployment Step') {
-            agent { label 'built-in' }
-            steps {
-                script {
-                    def hosts = readJSON(text: params.inventory_json)
                     def deploymentStep = env.JOB_BASE_NAME
                     def failedHosts = []
 
-                    hosts.each { host ->
-                        def hostName = (host?.hostName ?: host?.hostname)?.toString()?.trim()
+                    hostNames.each { hostName ->
                         def updated = false
 
                         for (int attempt = 1; attempt <= 3 && !updated; attempt++) {
@@ -91,7 +85,7 @@ pipeline {
 
                     if (failedHosts) {
                         currentBuild.result = 'UNSTABLE'
-                        echo "포털 API 갱신 실패 호스트(${failedHosts.size()}/${hosts.size()}): ${failedHosts.join(', ')}"
+                        echo "포털 API 갱신 실패 호스트(${failedHosts.size()}/${hostNames.size()}): ${failedHosts.join(', ')}"
                     }
                 }
             }
