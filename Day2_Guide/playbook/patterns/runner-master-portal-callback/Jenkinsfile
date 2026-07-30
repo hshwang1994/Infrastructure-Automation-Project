@@ -99,8 +99,8 @@ pipeline {
                 checkout scm
                 ansiblePlaybook(
                     installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/example/site.yml",
-                    inventory   : "${WORKSPACE}/Day2_Guide/playbook/example/inventory.sh",
+                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
+                    inventory   : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/inventory.sh",
                     colorized   : true
                 )
             }

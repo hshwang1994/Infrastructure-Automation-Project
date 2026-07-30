@@ -1,4 +1,4 @@
-# playbook/example — OS/ESXi 프로비저닝 액션 + 포털 배포단계 갱신 예제
+# patterns/runner-master-portal-callback — OS/ESXi 프로비저닝 액션 + 포털 배포단계 갱신 예제
 
 `example_action` Role 을 여러 호스트에 실행하고, 전체 성공 시에만 각 호스트의 배포단계를 포털에 기록하는 참조 구현.
 
@@ -45,4 +45,16 @@ Runner 는 포털과 통신할 수 없는 망이라 포털 API 호출은 하지 
 
 ## Jenkins Script Path
 
-`Day2_Guide/playbook/example/Jenkinsfile`
+`Day2_Guide/playbook/patterns/runner-master-portal-callback/Jenkinsfile`
+
+## 관리자 준비사항 (Jenkins 쪽에서 손대야 하는 것)
+
+| 항목 | 상태 | 설명 |
+| :--- | :--- | :--- |
+| Jenkins job 등록 | ✅ 완료 | `example-provisioning-portal-notify`, GitHub(origin) SCM, Script Path 위 경로로 설정됨 |
+| `http_request` 플러그인 | ✅ 이미 설치됨 | 포털 API 호출(`httpRequest` 스텝)에 사용 |
+| `pipeline-utility-steps` 플러그인 | ✅ 이미 설치됨 | `readJSON`/`writeJSON` 스텝에 사용 |
+| Ansible 설치(`installation: 'ansible'`) | ✅ 기존 설정 재사용 | 다른 job들과 동일한 Jenkins Ansible 툴 설정 사용, 별도 작업 불필요 |
+| **전역 Shared Library GitLab 인증** | ❌ **막혀있음 — 최우선 처리 필요** | `Manage Jenkins → System → Global Trusted Pipeline Libraries → jenkins-shared-lib` 가 GitLab(`10.100.64.156/root/jenkins-shared-lib.git`)을 크리덴셜 `포털계정`으로 체크아웃하는데 인증 실패 중. **이게 막혀있으면 이 job 뿐 아니라 이 Jenkins의 모든 파이프라인이 시작 단계에서 실패한다.** `Manage Jenkins → Credentials` 에서 유효한 계정/비번으로 크리덴셜을 고치거나 새로 만들어서 라이브러리 설정이 그걸 가리키게 연결 필요 |
+| `callbackUrl` 실제 값 | ⚠️ 매 빌드 입력 필요 | 코드에 하드코딩하지 않음(요청사항) — Build with Parameters 할 때마다 실제 포털 base URL을 직접 입력해야 함 |
+| 대상 호스트 접속 자격증명 | ⚠️ 매 빌드 입력 필요 | vault 미사용 — `inventory_json` 항목에 `ansible_user`/`ansible_password`(또는 winrm 관련 필드) 를 직접 넣어서 전달. 고정 계정을 쓰고 싶으면 vault 방식으로 바꾸는 확장 작업 별도 필요 |
