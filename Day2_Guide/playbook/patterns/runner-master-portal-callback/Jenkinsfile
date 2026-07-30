@@ -30,23 +30,7 @@ pipeline {
             agent { label 'built-in' }
             steps {
                 script {
-                    if (!params.callbackUrl?.trim()) {
-                        error("callbackUrl 파라미터가 비어있습니다.")
-                    }
-
-                    def hosts = readJSON(text: params.inventory_json ?: '[]')
-                    if (!(hosts instanceof List) || hosts.isEmpty()) {
-                        error("inventory_json 배열이 비어있습니다.")
-                    }
-
-                    def hostNames = hosts.collect { host ->
-                        def hostName = (host?.hostName ?: host?.hostname)?.toString()?.trim()
-                        if (!hostName) {
-                            error("inventory_json 항목에 hostName(hostname) 이 없습니다: ${host}")
-                        }
-                        hostName
-                    }
-
+                    def hostNames = readJSON(text: params.inventory_json).collect { it.hostName ?: it.hostname }
                     def deploymentStep = env.JOB_BASE_NAME
                     def failedHosts = []
 
@@ -64,14 +48,12 @@ pipeline {
                                     validResponseCodes: '100:599'
                                 )
                                 def body = readJSON(text: response.content)
-                                if (response.status == 200 && body.success == true) {
-                                    echo "배포단계 갱신 성공: hostName=${hostName}, deploymentStep=${deploymentStep} (attempt=${attempt}/3)"
-                                    updated = true
-                                } else {
-                                    echo "배포단계 갱신 실패 응답: hostName=${hostName}, attempt=${attempt}/3, status=${response.status}, message=${body?.message}"
+                                updated = (response.status == 200 && body.success == true)
+                                if (!updated) {
+                                    echo "배포단계 갱신 실패: hostName=${hostName}, attempt=${attempt}/3, status=${response.status}, message=${body?.message}"
                                 }
                             } catch (Exception e) {
-                                echo "배포단계 갱신 API 호출 예외: hostName=${hostName}, attempt=${attempt}/3, error=${e.message}"
+                                echo "배포단계 갱신 예외: hostName=${hostName}, attempt=${attempt}/3, error=${e.message}"
                             }
                             if (!updated && attempt < 3) {
                                 sleep(time: 3, unit: 'SECONDS')
@@ -85,7 +67,7 @@ pipeline {
 
                     if (failedHosts) {
                         currentBuild.result = 'UNSTABLE'
-                        echo "포털 API 갱신 실패 호스트(${failedHosts.size()}/${hostNames.size()}): ${failedHosts.join(', ')}"
+                        echo "포털 API 갱신 실패 호스트: ${failedHosts.join(', ')}"
                     }
                 }
             }
