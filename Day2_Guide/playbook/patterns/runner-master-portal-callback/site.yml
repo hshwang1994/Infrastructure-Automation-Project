@@ -2,6 +2,10 @@
 - name: example_action Role 실행 — 모든 대상 호스트
   hosts: all
   gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
 
   roles:
     - example_action

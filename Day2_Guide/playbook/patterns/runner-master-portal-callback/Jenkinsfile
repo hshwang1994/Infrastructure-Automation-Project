@@ -18,9 +18,10 @@ pipeline {
         stage('Run Ansible') {
             steps {
                 ansiblePlaybook(
-                    installation: 'ansible',
-                    playbook    : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
-                    colorized   : true
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
                 )
             }
         }
