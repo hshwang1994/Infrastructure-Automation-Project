@@ -1,0 +1,27 @@
+---
+- name: lookup 데모 — env / file / pipe 등 컨트롤러에서 값 동적 조회
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars:
+    # lookup 결과를 vars 에 잡아두면 여러 task 에서 재사용 가능
+    home_dir:  "{{ lookup('env', 'HOME') }}"
+    repo_root: "{{ lookup('env', 'REPO_ROOT') | default('(REPO_ROOT 미설정)', true) }}"
+
+  tasks:
+    - name: env lookup — 컨트롤러의 환경변수 값
+      ansible.builtin.debug:
+        msg: "HOME = {{ home_dir }} / REPO_ROOT = {{ repo_root }}"
+
+    - name: file lookup — 같은 디렉토리의 텍스트 파일 내용을 변수로
+      ansible.builtin.debug:
+        msg: "hello.txt 내용 = {{ lookup('file', 'hello.txt') | trim }}"
+
+    - name: pipe lookup — 컨트롤러에서 명령 실행 후 stdout 가져오기
+      ansible.builtin.debug:
+        msg: "컨트롤러의 현재 사용자 = {{ lookup('pipe', 'whoami') }}"
+
+    - name: template lookup — Jinja2 식 문자열을 즉석에서 렌더
+      ansible.builtin.debug:
+        msg: "{{ lookup('template', 'inline.j2') if false else '직접 inline 표현식: host=' ~ inventory_hostname ~ ' home=' ~ home_dir }}"

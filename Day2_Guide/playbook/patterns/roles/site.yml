@@ -1,0 +1,8 @@
+---
+- name: Role 구조 데모 — welcome role 적용
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  roles:
+    - welcome

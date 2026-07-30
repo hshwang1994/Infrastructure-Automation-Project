@@ -1,0 +1,67 @@
+pipeline {
+    agent { label "${params.loc} && ${params.target_type}" }
+
+    parameters {
+        string(name: 'loc',            defaultValue: 'ich',   description: 'Agent 위치 (ich | chj | yi)')
+        string(name: 'target_type',    defaultValue: 'linux', description: '대상 종류 (linux | windows | esxi | redfish)')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]', description: '타겟 호스트 JSON 배열')
+        string(name: 'callbackUrl',    defaultValue: '', description: '포털 API base URL (CLOVIRONE_BASE_URL)')
+    }
+
+    environment {
+        INVENTORY_JSON = "${params.inventory_json}"
+        TARGET_TYPE    = "${params.target_type}"
+        REPO_ROOT      = "${WORKSPACE}/Day2_Guide"
+    }
+
+    stages {
+        stage('Run Ansible') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/Day2_Guide/playbook/patterns/runner-master-portal-callback/site.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+
+        stage('Update Deployment Step') {
+            agent { label 'built-in' }
+            steps {
+                script {
+                    def hostNames = readJSON(text: params.inventory_json).collect { it.hostName ?: it.hostname }
+                    def deploymentStep = env.JOB_BASE_NAME
+                    def failedHosts = []
+
+                    hostNames.each { hostName ->
+                        try {
+                            retry(3) {
+                                writeJSON(file: 'deployment-step-payload.json', json: [hostName: hostName, deploymentStep: deploymentStep])
+                                def response = httpRequest(
+                                    httpMode          : 'POST',
+                                    url               : "${params.callbackUrl}/api/jenkins/logical/server/deployment/step",
+                                    contentType       : 'APPLICATION_JSON',
+                                    requestBody       : readFile('deployment-step-payload.json'),
+                                    validResponseCodes: '100:599'
+                                )
+                                def body = readJSON(text: response.content)
+                                if (!(response.status == 200 && body.success == true)) {
+                                    error("status=${response.status}, message=${body?.message}")
+                                }
+                            }
+                        } catch (Exception e) {
+                            echo "배포단계 갱신 실패: hostName=${hostName}, error=${e.message}"
+                            failedHosts << hostName
+                        }
+                    }
+
+                    if (failedHosts) {
+                        currentBuild.result = 'UNSTABLE'
+                        echo "포털 API 갱신 실패 호스트: ${failedHosts.join(', ')}"
+                    }
+                }
+            }
+        }
+    }
+}

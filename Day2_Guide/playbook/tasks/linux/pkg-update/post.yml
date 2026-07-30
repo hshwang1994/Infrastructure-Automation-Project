@@ -1,0 +1,28 @@
+---
+- name: 업데이트 후 검증
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: reboot 필요 여부
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: 핵심 서비스 상태
+      ansible.builtin.service_facts:
+
+    - name: sshd 가 active 인지 확인
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['sshd.service'].state == 'running' or ansible_facts.services['ssh.service'].state == 'running'
+        fail_msg: "{{ inventory_hostname }} sshd 가 죽었음"
+
+    - name: 결과 요약
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: reboot_needed={{ reboot_required.stat.exists }}"

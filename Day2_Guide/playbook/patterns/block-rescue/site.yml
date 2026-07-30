@@ -1,0 +1,45 @@
+---
+- name: block / rescue / always 데모 — /tmp/demo.txt 안전 변경
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  tasks:
+    - name: 안전한 변경 시도
+      block:
+        - name: 원본 백업
+          ansible.builtin.copy:
+            content: "original\n"
+            dest: /tmp/demo.txt
+            mode: '0644'
+
+        - name: 백업 복사
+          ansible.builtin.copy:
+            src: /tmp/demo.txt
+            dest: /tmp/demo.txt.bak
+            remote_src: true
+
+        - name: 새 내용 작성
+          ansible.builtin.copy:
+            content: "updated\n"
+            dest: /tmp/demo.txt
+            mode: '0644'
+
+        - name: 의도적 실패 — rescue 분기를 보여주기 위한 단계
+          ansible.builtin.command: /bin/false
+
+      rescue:
+        - name: 백업으로 복원
+          ansible.builtin.copy:
+            src: /tmp/demo.txt.bak
+            dest: /tmp/demo.txt
+            remote_src: true
+
+        - name: 실패 사실 알림
+          ansible.builtin.debug:
+            msg: "{{ inventory_hostname }}: 변경 실패 — 백업으로 복원함"
+
+      always:
+        - name: 종료 시각 기록
+          ansible.builtin.debug:
+            msg: "{{ inventory_hostname }}: 종료 {{ ansible_date_time.iso8601 }}"

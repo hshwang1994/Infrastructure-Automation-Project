@@ -1,0 +1,14 @@
+---
+- name: 로그온 배너 제목 (legalnoticecaption)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: legalnoticecaption
+    data: "{{ legalnotice_caption }}"
+    type: string
+
+- name: 로그온 배너 본문 (legalnoticetext)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: legalnoticetext
+    data: "{{ legalnotice_text }}"
+    type: string

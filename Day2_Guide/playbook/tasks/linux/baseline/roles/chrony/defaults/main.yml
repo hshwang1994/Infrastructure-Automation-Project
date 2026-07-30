@@ -1,0 +1,3 @@
+---
+chrony_package_name: chrony
+chrony_service_name: chronyd

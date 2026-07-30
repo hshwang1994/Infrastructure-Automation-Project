@@ -1,0 +1,38 @@
+---
+- name: 디스크 사용량 점검 (shell 명령만 사용)
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: df -h
+      ansible.builtin.command: df -h --output=source,size,used,avail,pcent,target
+      register: df
+      changed_when: false
+
+    - name: df -i
+      ansible.builtin.command: df -i
+      register: df_i
+      changed_when: false
+
+    - name: 100MB 초과 파일 상위 5개
+      ansible.builtin.shell: |
+        set -o pipefail
+        find / -xdev -type f -size +100M 2>/dev/null | head -5
+      register: large_files
+      changed_when: false
+      failed_when: false
+
+    - name: 결과
+      ansible.builtin.debug:
+        msg: |
+          [{{ inventory_hostname }}]
+          == df -h ==
+          {{ df.stdout }}
+          == df -i ==
+          {{ df_i.stdout }}
+          == large files ==
+          {{ large_files.stdout | default('none') }}

@@ -1,0 +1,13 @@
+---
+# ExtraVars demo — Jenkinsfile 의 1개 파라미터(greeting) 를 ansible 로 전달.
+# hosts: localhost / connection: local 로 ansible 컨트롤러(=Jenkins agent)
+# 에서 바로 실행 → SSH 불필요.
+- name: ExtraVars demo — Jenkins → ansible 변수 전달
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: extraVars 로 받은 greeting 출력
+      ansible.builtin.debug:
+        msg: "greeting = {{ greeting }}"

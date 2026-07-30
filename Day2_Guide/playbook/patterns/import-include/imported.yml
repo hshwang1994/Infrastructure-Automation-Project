@@ -1,0 +1,13 @@
+---
+- name: imported — 정적으로 합쳐진 task (1/2)
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: import_tasks 로 합쳐진 task 실행 중"
+
+- name: imported — uptime 받아오기
+  ansible.builtin.command: uptime
+  register: up
+  changed_when: false
+
+- name: imported — uptime 결과 출력 (2/2)
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: uptime = {{ up.stdout | trim }}"

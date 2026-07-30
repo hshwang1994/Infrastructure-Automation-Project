@@ -1,0 +1,55 @@
+---
+- name: nginx 헬스체크 엔드포인트 배포 (install/configure/verify 태그 분리)
+  hosts: all
+  connection: ssh
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: nginx 설치
+      ansible.builtin.package:
+        name: nginx
+        state: present
+      tags: install
+
+    - name: 헬스체크 conf 배치
+      ansible.builtin.copy:
+        content: |
+          server {
+              listen 80 default_server;
+              location /healthz { return 200 "ok\n"; }
+          }
+        dest: /etc/nginx/conf.d/healthcheck.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart nginx
+      tags: configure
+
+    - name: nginx 시작/활성화
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+      tags: configure
+
+    - name: /healthz 응답 확인
+      ansible.builtin.uri:
+        url: http://localhost/healthz
+        status_code: 200
+        return_content: true
+      register: probe
+      tags: verify
+
+    - ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: probe={{ probe.content | trim }}"
+      tags: verify
+
+  handlers:
+    - name: restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted

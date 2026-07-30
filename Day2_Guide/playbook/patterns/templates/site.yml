@@ -1,0 +1,31 @@
+---
+- name: templates 데모 — Jinja2 template + 변수 + 필터
+  hosts: all
+  gather_facts: true
+  connection: ssh
+
+  vars:
+    service_name: demo-api
+    service_port: 8080
+    enabled_features:
+      - cache
+      - metrics
+      - tracing
+
+  tasks:
+    - name: 템플릿 렌더링해서 설정 파일 생성
+      ansible.builtin.template:
+        src:  demo.conf.j2
+        dest: /tmp/template-demo.conf
+        mode: '0644'
+
+    - name: 생성된 내용 다시 읽어보기
+      ansible.builtin.slurp:
+        src: /tmp/template-demo.conf
+      register: out
+
+    - name: 결과 출력
+      ansible.builtin.debug:
+        msg: |
+          [{{ inventory_hostname }}] template 렌더 결과:
+          {{ (out.content | b64decode) | trim }}

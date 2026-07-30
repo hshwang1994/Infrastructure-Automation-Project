@@ -1,0 +1,38 @@
+---
+- name: register-when 데모 — task 결과를 변수로 잡고 다음 task 분기
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars:
+    target_file: /tmp/register-demo.txt
+
+  tasks:
+    - name: 1) 파일 존재 여부 확인 (결과는 register 로 변수에 저장)
+      ansible.builtin.stat:
+        path: "{{ target_file }}"
+      register: target_stat
+
+    - name: 2) 파일이 없으면 새로 만들기
+      ansible.builtin.copy:
+        content: "처음 실행에서 만들어진 파일\n"
+        dest:    "{{ target_file }}"
+        mode:    '0644'
+      when: not target_stat.stat.exists
+
+    - name: 2') 파일이 이미 있으면 안내만
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 이미 존재 — size={{ target_stat.stat.size }}B"
+      when: target_stat.stat.exists
+
+    - name: 3) 어쨌든 현재 내용 읽기 (changed_when: false 로 멱등)
+      ansible.builtin.command: cat {{ target_file }}
+      register: contents
+      changed_when: false
+
+    - name: 4) rc 가 0 이고 내용에 '처음' 이 포함될 때만 출력
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: 첫 실행 후 상태 — {{ contents.stdout }}"
+      when:
+        - contents.rc == 0
+        - "'처음' in contents.stdout"

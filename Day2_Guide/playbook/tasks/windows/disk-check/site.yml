@@ -1,0 +1,44 @@
+---
+- name: 디스크 사용량 점검 (PowerShell 명령만 사용)
+  hosts: all
+  gather_facts: false
+  connection: winrm
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/windows.yml"
+
+  vars:
+    ansible_winrm_transport:              ntlm
+    ansible_winrm_scheme:                 http
+    ansible_port:                         5985
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+    - name: 논리 디스크 사용량
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object {
+            "{0} Total={1:N1}GB Free={2:N1}GB Used={3:N0}%" -f `
+                $_.DeviceID, ($_.Size/1GB), ($_.FreeSpace/1GB), (100 - ($_.FreeSpace / $_.Size * 100))
+        }
+      register: disk
+      changed_when: false
+
+    - name: 100MB 초과 대용량 파일 상위 5개 (C:)
+      ansible.windows.win_shell: |
+        Get-ChildItem C:\ -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Length -gt 100MB } |
+            Sort-Object Length -Descending |
+            Select-Object -First 5 FullName, @{N='SizeMB';E={[math]::Round($_.Length/1MB)}} |
+            Format-Table -AutoSize | Out-String
+      register: large_files
+      changed_when: false
+      failed_when: false
+
+    - name: 결과
+      ansible.builtin.debug:
+        msg: |
+          [{{ inventory_hostname }}]
+          == DISK ==
+          {{ disk.stdout | trim }}
+          == LARGE FILES (>100MB, C:) ==
+          {{ large_files.stdout | default('none') | trim }}

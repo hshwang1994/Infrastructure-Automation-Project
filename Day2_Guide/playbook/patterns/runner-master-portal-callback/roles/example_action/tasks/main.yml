@@ -1,0 +1,10 @@
+---
+- name: 프로비저닝 액션 실행 (예제)
+  ansible.builtin.command: "{{ example_action_command }}"
+  register: example_action_result
+  changed_when: false
+  notify: log example action
+
+- name: 실행 결과 출력
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: {{ example_action_result.stdout }}"

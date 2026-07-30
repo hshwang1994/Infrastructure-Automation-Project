@@ -1,0 +1,22 @@
+---
+- name: 업데이트 전 점검
+  hosts: all
+  gather_facts: true
+  connection: ssh
+  become: true
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  tasks:
+    - name: 루트 파티션 여유공간 1GB 이상 확인
+      ansible.builtin.assert:
+        that:
+          - root_mount.size_available > 1073741824
+        fail_msg: "{{ inventory_hostname }} 루트 여유공간 부족"
+      vars:
+        root_mount: "{{ ansible_facts.mounts | selectattr('mount', 'eq', '/') | first }}"
+
+    - name: package manager 식별
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: os={{ ansible_facts.os_family }} pkg_mgr={{ ansible_facts.pkg_mgr }}"
