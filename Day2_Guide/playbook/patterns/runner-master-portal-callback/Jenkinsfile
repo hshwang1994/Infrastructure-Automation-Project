@@ -35,10 +35,8 @@ pipeline {
                     def failedHosts = []
 
                     hostNames.each { hostName ->
-                        def updated = false
-
-                        for (int attempt = 1; attempt <= 3 && !updated; attempt++) {
-                            try {
+                        try {
+                            retry(3) {
                                 writeJSON(file: 'deployment-step-payload.json', json: [hostName: hostName, deploymentStep: deploymentStep])
                                 def response = httpRequest(
                                     httpMode          : 'POST',
@@ -48,19 +46,12 @@ pipeline {
                                     validResponseCodes: '100:599'
                                 )
                                 def body = readJSON(text: response.content)
-                                updated = (response.status == 200 && body.success == true)
-                                if (!updated) {
-                                    echo "배포단계 갱신 실패: hostName=${hostName}, attempt=${attempt}/3, status=${response.status}, message=${body?.message}"
+                                if (!(response.status == 200 && body.success == true)) {
+                                    error("status=${response.status}, message=${body?.message}")
                                 }
-                            } catch (Exception e) {
-                                echo "배포단계 갱신 예외: hostName=${hostName}, attempt=${attempt}/3, error=${e.message}"
                             }
-                            if (!updated && attempt < 3) {
-                                sleep(time: 3, unit: 'SECONDS')
-                            }
-                        }
-
-                        if (!updated) {
+                        } catch (Exception e) {
+                            echo "배포단계 갱신 실패: hostName=${hostName}, error=${e.message}"
                             failedHosts << hostName
                         }
                     }
