@@ -33,7 +33,7 @@ Ansible 이 0이 아닌 코드로 끝나면 `ansiblePlaybook()` 스텝이 그 �
 | :--- | :--- | :--- |
 | `loc` | `git` | Ansible 을 실행할 Runner 라벨 (이 환경에서 사용 가능한 라벨) |
 | `target_type` | `linux` | 대상 종류 (linux \| windows \| esxi \| redfish) — 인벤토리 스크립트용 |
-| `inventory_json` | `[{"hostname":"jm-auto-install-test01","service_ip":"10.100.64.182"}]` | 대상 호스트 배열 |
+| `inventory_json` | `[{"hostname":"jm-auto-install-test01","service_ip":"10.100.64.182"}, ...]` | 대상 호스트 배열. 기본값은 실제 호스트 2대 + 접속 불가능한 가짜 호스트 1대(`linux-dev-fail`/`10.100.64.199`) — Ansible 전체 실패(FAILURE) 시 `Update Deployment Step`이 스킵되는 걸 그대로 보여주기 위함 |
 | `callbackUrl` | `http://<portal-host>:<port>` | 포털 base URL. `/api/jenkins/logical/server/deployment/step` 을 붙여 호출 |
 
 ## Jenkins Script Path
