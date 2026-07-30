@@ -4,7 +4,7 @@ pipeline {
     parameters {
         string(name: 'loc',            defaultValue: 'git',   description: '이 환경에서 사용 가능한 Runner 라벨')
         string(name: 'target_type',    defaultValue: 'linux', description: '대상 종류 (linux | windows | esxi | redfish)')
-        text(  name: 'inventory_json', defaultValue: '[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]', description: '타겟 호스트 JSON 배열')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"jm-auto-install-test01","service_ip":"10.100.64.182"},{"hostname":"jm-auto-install-test02","service_ip":"10.100.64.183"}]', description: '타겟 호스트 JSON 배열')
         string(name: 'callbackUrl',    defaultValue: '', description: '포털 API base URL (CLOVIRONE_BASE_URL)')
     }
 

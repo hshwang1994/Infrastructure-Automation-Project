@@ -6,7 +6,7 @@
 
 ```
 stage('Run Ansible')                       stage('Update Deployment Step')
-agent: params.loc && params.target_type    agent: built-in
+agent: params.loc                          agent: built-in
 ┌─────────────────────────┐                ┌─────────────────────────┐
 │ inventory_json 의 모든   │   exit code    │ inventory_json 에서      │
 │ 호스트에 example_action  │ ─────────────▶ │ hostName 전체 추출       │
@@ -15,9 +15,11 @@ agent: params.loc && params.target_type    agent: built-in
 └─────────────────────────┘                └─────────────────────────┘
 ```
 
-Runner 는 포털과 통신할 수 없는 망이라 포털 API 호출은 하지 않는다. `stage('Run Ansible')` 은 다른 `tasks/linux`, `sandbox` Jenkinsfile 과 동일하게 최상위 `agent`(`params.loc && params.target_type`) 를 그대로 쓰고, `stage('Update Deployment Step')` 만 `agent { label 'built-in' }` 로 override 해서 Jenkins Master 에서 돈다.
+Runner 는 포털과 통신할 수 없는 망이라 포털 API 호출은 하지 않는다. `stage('Run Ansible')` 은 최상위 `agent`(`params.loc`, 이 환경에서는 `git`)를 그대로 쓰고, `stage('Update Deployment Step')` 만 `agent { label 'built-in' }` 로 override 해서 Jenkins Master 에서 돈다.
 
 Ansible 이 0이 아닌 코드로 끝나면 `ansiblePlaybook()` 스텝이 그 자리에서 파이프라인을 실패시켜 `Update Deployment Step` 자체가 실행되지 않는다 — `catchError`/`ignore_errors` 없음.
+
+대상 호스트 SSH 인증은 `vault/linux.yml`(ansible-vault 암호화)의 `ansible_user`/`ansible_password` 로 처리한다 — 다른 `tasks/linux` 작업들과 동일한 방식.
 
 ## 다중 호스트 실행
 
@@ -29,14 +31,16 @@ Ansible 이 0이 아닌 코드로 끝나면 `ansiblePlaybook()` 스텝이 그 �
 
 | 파라미터 | 예시 | 설명 |
 | :--- | :--- | :--- |
-| `loc` | `ich` | Agent 위치 (다른 Jenkinsfile 과 동일한 고정 이름) |
-| `target_type` | `linux` | 대상 종류 (linux \| windows \| esxi \| redfish) |
-| `inventory_json` | `[{"hostname":"linux-dev-01","service_ip":"10.100.64.169"}]` | 대상 호스트 배열 |
+| `loc` | `git` | Ansible 을 실행할 Runner 라벨 (이 환경에서 사용 가능한 라벨) |
+| `target_type` | `linux` | 대상 종류 (linux \| windows \| esxi \| redfish) — 인벤토리 스크립트용 |
+| `inventory_json` | `[{"hostname":"jm-auto-install-test01","service_ip":"10.100.64.182"}]` | 대상 호스트 배열 |
 | `callbackUrl` | `http://<portal-host>:<port>` | 포털 base URL. `/api/jenkins/logical/server/deployment/step` 을 붙여 호출 |
 
 ## Jenkins Script Path
 
-`Day2_Guide/playbook/patterns/runner-master-portal-callback/Jenkinsfile`
+`Day2_Guide/playbook/patterns/runner-master-portal-callback/Jenkinsfile_deployment-step-notify`
+
+(파일명은 이 Jenkins 인스턴스의 기존 관례 `Jenkinsfile_<액션명>` 을 따름)
 
 ## 관리자 준비사항
 
@@ -45,6 +49,8 @@ Ansible 이 0이 아닌 코드로 끝나면 `ansiblePlaybook()` 스텝이 그 �
 | Jenkins job 등록 | ✅ 완료 | `example-provisioning-portal-notify`, GitLab(`root/infra-automation-jenkins-ansible`, `main`) SCM, HTTPS + `root` 크리덴셜 |
 | `http_request` / `pipeline-utility-steps` 플러그인 | ✅ 이미 설치됨 | 포털 API 호출(`httpRequest`)과 JSON 처리(`readJSON`/`writeJSON`)에 사용 |
 | 전역 Shared Library GitLab 인증 | ✅ 해결됨 | `jenkins-shared-lib` 크리덴셜을 `root`로, Default version을 `main`으로 수정. 이 Jenkins 전체 파이프라인에 영향 있던 문제라 다른 job들도 같이 풀림 |
+| `vault/linux.yml` 인증정보 | ✅ 갱신됨 | `ansible_user: cloviradmin` 으로 갱신 (GitLab에만 반영, GitHub 미반영) |
 | `callbackUrl` 실제 값 | ⚠️ 매 빌드 입력 필요 | 코드에 하드코딩하지 않음 — Build with Parameters 할 때마다 직접 입력 |
-| Ansible 실행 검증 | ✅ 확인됨 | 실제 빌드에서 `Run Ansible` 정상 동작 확인. 기본 `inventory_json`(`linux-dev-01`)은 가짜 데모 IP라 실패하는 게 정상이며, 이때 `Update Deployment Step`이 스킵되는 것도 확인됨 |
-| 포털 실제 성공 케이스 | ❌ 미확인 | 살아있는 실제 호스트 + 실제 `callbackUrl` 없이는 끝까지(포털 응답까지) 확인 불가 |
+| 실제 호스트 대상 Ansible 실행 | ✅ 확인됨 | 실 호스트 `jm-auto-install-test01`(10.100.64.182), `jm-auto-install-test02`(10.100.64.183) 대상 빌드에서 `ok=2`, 실패 0 확인 |
+| 포털 API 갱신 + 재시도 + UNSTABLE 처리 | ✅ 확인됨 | 위 실 호스트 빌드에서 `callbackUrl` 미입력 시 `MalformedURLException` → 3회 재시도 → 호스트별 실패 로그 → 빌드 `UNSTABLE` 까지 실제로 확인됨 |
+| 포털 실제 성공(200 + success:true) 케이스 | ❌ 미확인 | 실제 유효한 `callbackUrl` 이 있어야만 확인 가능 |
