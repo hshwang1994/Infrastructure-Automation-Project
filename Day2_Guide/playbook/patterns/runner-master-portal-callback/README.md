@@ -42,7 +42,9 @@ Ansible 이 0이 아닌 코드로 끝나면 `ansiblePlaybook()` 스텝이 그 �
 
 | 항목 | 상태 | 설명 |
 | :--- | :--- | :--- |
-| Jenkins job 등록 | ✅ 완료 | `example-provisioning-portal-notify`, GitHub(origin) SCM |
+| Jenkins job 등록 | ✅ 완료 | `example-provisioning-portal-notify`, GitLab(`root/infra-automation-jenkins-ansible`, `main`) SCM, HTTPS + `root` 크리덴셜 |
 | `http_request` / `pipeline-utility-steps` 플러그인 | ✅ 이미 설치됨 | 포털 API 호출(`httpRequest`)과 JSON 처리(`readJSON`/`writeJSON`)에 사용 |
-| **전역 Shared Library GitLab 인증** | ❌ **막혀있음** | `Manage Jenkins → System → Global Trusted Pipeline Libraries → jenkins-shared-lib` 가 GitLab 체크아웃 인증 실패 중. 이 Jenkins의 모든 파이프라인이 시작 단계에서 막힐 수 있음 — 크리덴셜 갱신 필요 |
+| 전역 Shared Library GitLab 인증 | ✅ 해결됨 | `jenkins-shared-lib` 크리덴셜을 `root`로, Default version을 `main`으로 수정. 이 Jenkins 전체 파이프라인에 영향 있던 문제라 다른 job들도 같이 풀림 |
 | `callbackUrl` 실제 값 | ⚠️ 매 빌드 입력 필요 | 코드에 하드코딩하지 않음 — Build with Parameters 할 때마다 직접 입력 |
+| Ansible 실행 검증 | ✅ 확인됨 | 실제 빌드에서 `Run Ansible` 정상 동작 확인. 기본 `inventory_json`(`linux-dev-01`)은 가짜 데모 IP라 실패하는 게 정상이며, 이때 `Update Deployment Step`이 스킵되는 것도 확인됨 |
+| 포털 실제 성공 케이스 | ❌ 미확인 | 살아있는 실제 호스트 + 실제 `callbackUrl` 없이는 끝까지(포털 응답까지) 확인 불가 |
