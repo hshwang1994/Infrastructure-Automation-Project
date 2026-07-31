@@ -43,7 +43,8 @@ pipeline {
                                     url               : "${params.callbackUrl}/api/jenkins/logical/server/deployment/step",
                                     contentType       : 'APPLICATION_JSON',
                                     requestBody       : readFile('deployment-step-payload.json'),
-                                    validResponseCodes: '100:599'
+                                    validResponseCodes: '100:599',
+                                    timeout           : 10
                                 )
                                 def body = readJSON(text: response.content)
                                 if (!(response.status == 200 && body.success == true)) {
