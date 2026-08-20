@@ -1,0 +1,25 @@
+---
+- name: Portal System Check
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  vars:
+    portal_msg_dir: "{{ lookup('env', 'PORTAL_MSG_DIR') }}"
+    portal_seq: "02"
+
+  pre_tasks:
+    - name: Ensure portal message directory exists
+      ansible.builtin.file:
+        path: "{{ portal_msg_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
+  roles:
+    - role: portal_system_check

@@ -1,0 +1,25 @@
+---
+- name: Portal System Check
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  roles:
+    - role: portal_system_check
+
+  post_tasks:
+    - name: Print portal records for Portal
+      ansible.builtin.debug:
+        msg: >-
+          PORTAL_MSG: {{
+            ansible_play_hosts
+            | map('extract', hostvars, 'portal_records')
+            | select('defined')
+            | list
+            | flatten
+            | to_json
+          }}
+      run_once: true

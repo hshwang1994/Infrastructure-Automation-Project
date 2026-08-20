@@ -1,0 +1,56 @@
+---
+- name: Read timezone
+  ansible.builtin.command:
+    cmd: timedatectl show --property=Timezone --value
+  register: timezone_result
+  changed_when: false
+  failed_when: false
+
+- name: Read kernel version
+  ansible.builtin.command:
+    cmd: uname -r
+  register: kernel_result
+  changed_when: false
+  failed_when: false
+
+- name: Build portal records
+  ansible.builtin.set_fact:
+    portal_records: >-
+      {{
+        [
+          {
+            'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+            'host_name': inventory_hostname,
+            'host_addr': ansible_host | default(inventory_hostname),
+            'role_name': role_name | default(''),
+            'task_name': 'Check timezone',
+            'original_value': timezone_result.stdout | default(none, true),
+            'return_code': 'PASS'
+              if (timezone_result.rc | default(1) | int) == 0
+              else 'FAIL',
+            'return_message': timezone_result.stdout
+              | default(timezone_result.stderr | default('', true), true)
+          },
+          {
+            'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+            'host_name': inventory_hostname,
+            'host_addr': ansible_host | default(inventory_hostname),
+            'role_name': role_name | default(''),
+            'task_name': 'Check kernel version',
+            'original_value': kernel_result.stdout | default(none, true),
+            'return_code': 'PASS'
+              if (kernel_result.rc | default(1) | int) == 0
+              else 'FAIL',
+            'return_message': kernel_result.stdout
+              | default(kernel_result.stderr | default('', true), true)
+          }
+        ]
+      }}
+
+- name: Save portal records to controller
+  ansible.builtin.copy:
+    content: "{{ portal_records | to_json }}"
+    dest: "{{ portal_msg_dir }}/{{ portal_seq }}__{{ role_name }}__{{ inventory_hostname }}.json"
+    mode: '0644'
+  delegate_to: localhost
+  changed_when: false

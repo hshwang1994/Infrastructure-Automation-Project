@@ -1,0 +1,48 @@
+---
+- name: Read hostname
+  ansible.builtin.command:
+    cmd: hostname
+  register: hostname_result
+  changed_when: false
+  failed_when: false
+
+- name: Read root filesystem usage
+  ansible.builtin.command:
+    cmd: df -h --output=pcent /
+  register: disk_result
+  changed_when: false
+  failed_when: false
+
+- name: Build portal records
+  ansible.builtin.set_fact:
+    portal_records: >-
+      {{
+        [
+          {
+            'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+            'host_name': inventory_hostname,
+            'host_addr': ansible_host | default(inventory_hostname),
+            'role_name': role_name | default(''),
+            'task_name': 'Check hostname',
+            'original_value': hostname_result.stdout | default(none, true),
+            'return_code': 'PASS'
+              if (hostname_result.rc | default(1) | int) == 0
+              else 'FAIL',
+            'return_message': hostname_result.stdout
+              | default(hostname_result.stderr | default('', true), true)
+          },
+          {
+            'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+            'host_name': inventory_hostname,
+            'host_addr': ansible_host | default(inventory_hostname),
+            'role_name': role_name | default(''),
+            'task_name': 'Check disk usage',
+            'original_value': disk_result.stdout_lines | default([], true) | last | default(none, true),
+            'return_code': 'PASS'
+              if (disk_result.rc | default(1) | int) == 0
+              else 'FAIL',
+            'return_message': disk_result.stdout
+              | default(disk_result.stderr | default('', true), true)
+          }
+        ]
+      }}

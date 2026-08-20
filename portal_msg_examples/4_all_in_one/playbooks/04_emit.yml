@@ -1,0 +1,26 @@
+---
+- name: Portal Emit
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    portal_msg_dir: "{{ lookup('env', 'PORTAL_MSG_DIR') }}"
+
+  tasks:
+    - name: Find saved portal record files
+      ansible.builtin.find:
+        paths: "{{ portal_msg_dir }}"
+        patterns: '*.json'
+      register: portal_files
+
+    - name: Merge portal records in execution order
+      ansible.builtin.set_fact:
+        portal_all: "{{ portal_all | default([]) + (lookup('file', item) | from_json) }}"
+      loop: "{{ portal_files.files | map(attribute='path') | sort | list }}"
+      loop_control:
+        label: "{{ item | basename }}"
+
+    - name: Print portal records for Portal
+      ansible.builtin.debug:
+        msg: "PORTAL_MSG: {{ portal_all | default([]) | to_json }}"
