@@ -1,0 +1,27 @@
+---
+- name: Read hostname
+  ansible.builtin.command:
+    cmd: hostname
+  register: hostname_result
+  changed_when: false
+  failed_when: false
+
+- name: Print hostname result for Portal
+  ansible.builtin.debug:
+    msg: >-
+      PORTAL_MSG: {{
+        {
+          'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+          'host_name': inventory_hostname,
+          'host_addr': ansible_host | default(inventory_hostname),
+          'role_name': role_name | default(''),
+          'task_name': 'Check hostname',
+          'original_value': hostname_result.stdout | default(none, true),
+          'return_code': 'PASS'
+            if (hostname_result.rc | default(1) | int) == 0
+            else 'FAIL',
+          'return_message': hostname_result.stdout
+            | default(hostname_result.stderr | default('', true), true)
+        }
+        | ansible.builtin.to_json
+      }}

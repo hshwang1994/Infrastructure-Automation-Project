@@ -1,0 +1,11 @@
+---
+- name: Portal Verify
+  hosts: all
+  gather_facts: false
+  connection: ssh
+
+  vars_files:
+    - "{{ lookup('env', 'REPO_ROOT') }}/vault/linux.yml"
+
+  roles:
+    - role: portal_verify

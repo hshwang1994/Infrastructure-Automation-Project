@@ -1,0 +1,41 @@
+pipeline {
+    agent { label "${params.loc}" }
+
+    parameters {
+        string(name: 'loc',            defaultValue: 'git',   description: '이 환경에서 사용 가능한 Runner 라벨')
+        string(name: 'target_type',    defaultValue: 'linux', description: '대상 종류 (linux | windows | esxi | redfish)')
+        text(  name: 'inventory_json', defaultValue: '[{"hostname":"jm-auto-install-test01","service_ip":"10.100.64.182"},{"hostname":"jm-auto-install-test02","service_ip":"10.100.64.183"}]', description: '타겟 호스트 JSON 배열')
+    }
+
+    environment {
+        INVENTORY_JSON     = "${params.inventory_json}"
+        TARGET_TYPE        = "${params.target_type}"
+        REPO_ROOT          = "${WORKSPACE}/Day2_Guide"
+        ANSIBLE_ROLES_PATH = "${WORKSPACE}/portal_msg_example/roles"
+    }
+
+    stages {
+        stage('PORTAL MSG Parsing Test') {
+            steps {
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/portal_msg_example/playbooks/01_os_check.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/portal_msg_example/playbooks/02_system_check.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+                ansiblePlaybook(
+                    installation      : 'ansible',
+                    playbook          : "${WORKSPACE}/portal_msg_example/playbooks/03_verify.yml",
+                    vaultCredentialsId: 'ansible-vault-password',
+                    colorized         : true
+                )
+            }
+        }
+    }
+}

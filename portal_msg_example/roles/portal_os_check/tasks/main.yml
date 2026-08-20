@@ -1,0 +1,34 @@
+---
+- name: Read timezone
+  ansible.builtin.command:
+    cmd: timedatectl show --property=Timezone --value
+  register: timezone_result
+  changed_when: false
+  failed_when: false
+
+- name: Read timezone status
+  ansible.builtin.command:
+    cmd: timedatectl
+  register: timezone_status
+  changed_when: false
+  failed_when: false
+
+- name: Print timezone result for Portal
+  ansible.builtin.debug:
+    msg: >-
+      PORTAL_MSG: {{
+        {
+          'timestamp': lookup('pipe', 'date +%Y%m%d%H%M%S'),
+          'host_name': inventory_hostname,
+          'host_addr': ansible_host | default(inventory_hostname),
+          'role_name': role_name | default(''),
+          'task_name': 'Check timezone',
+          'original_value': timezone_result.stdout | default(none, true),
+          'return_code': 'PASS'
+            if (timezone_status.rc | default(1) | int) == 0
+            else 'FAIL',
+          'return_message': timezone_status.stdout
+            | default(timezone_status.stderr | default('', true), true)
+        }
+        | ansible.builtin.to_json
+      }}
